@@ -1,3 +1,4 @@
+// src/core/config/env.ts
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,6 +15,9 @@ export const config = {
     name: process.env.DB_NAME || 'mydb',
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
+    // MongoDB
+    mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/smashtechhub',
+    mongoTestUri: process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/smashtechhub_test',
   },
 
   // JWT
@@ -34,5 +38,10 @@ export const config = {
   rateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
+    // Contact form specific rate limiting
+    contact: {
+      windowMs: parseInt(process.env.CONTACT_RATE_LIMIT_WINDOW_MS || '3600000'), // 1 hour
+      max: parseInt(process.env.CONTACT_RATE_LIMIT_MAX || '5'), // 5 requests per hour
+    },
   },
 };
