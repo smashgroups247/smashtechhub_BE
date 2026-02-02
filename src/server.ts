@@ -20,7 +20,7 @@ const initializeDatabase = async () => {
     await mongoDBConnection.connect();
     logger.info('Database initialization completed');
   } catch (error) {
-    logger.error('Database initialization failed:', error);
+    logger.error('Database initialization failed:', { error: error instanceof Error ? error.message : String(error) });
     process.exit(1); // Exit if database connection fails
   }
 };
@@ -121,7 +121,7 @@ const startServer = async () => {
       logger.info(`Health Check: http://localhost:${PORT}/health`);
     });
   } catch (error) {
-    logger.error('Failed to start server:', error);
+    logger.error('Failed to start server:', { error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   }
 };
