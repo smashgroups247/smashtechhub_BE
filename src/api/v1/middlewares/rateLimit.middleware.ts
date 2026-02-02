@@ -1,4 +1,6 @@
 // src/api/v1/middlewares/rateLimit.middleware.ts
+/// <reference path="../../../shared/types/express.d.ts" />
+
 import rateLimit from 'express-rate-limit';
 import { config } from '@/core/config/env';
 import { errorResponse } from '@/shared/utils/response.util';
