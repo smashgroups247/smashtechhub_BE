@@ -1,4 +1,6 @@
 // src/api/v1/controllers/pricing.controller.ts
+/// <reference path="../../../shared/types/express.d.ts" />
+
 import { Request, Response, NextFunction } from 'express';
 import { pricingService } from '@/domain/pricing/services/pricing.service';
 import { successResponse } from '@/shared/utils/response.util';
