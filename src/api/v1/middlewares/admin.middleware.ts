@@ -1,4 +1,6 @@
 // src/api/v1/middlewares/admin.middleware.ts
+/// <reference path="../../../shared/types/express.d.ts" />
+
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '@/shared/errors/AppError';
 
@@ -12,21 +14,6 @@ import { AppError } from '@/shared/errors/AppError';
  * 3. Consider using a more sophisticated permission system
  */
 
-// Extend Express Request type to include user with role
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        email: string;
-        role?: string; // Add role to user object
-        iat?: number;
-        exp?: number;
-      };
-    }
-  }
-}
-
 /**
  * Check if user is admin
  */
@@ -37,11 +24,7 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
       throw new AppError('Authentication required', 401);
     }
 
-    // TODO: In production, fetch user role from database
-    // For now, we'll check if the user object has an admin role
-    // This is a placeholder - you should implement proper role checking
-    
-    // Option 1: Check role from JWT token (if role is included in token)
+    // Check role from JWT token (if role is included in token)
     const userRole = req.user.role;
     
     if (userRole !== 'admin') {
