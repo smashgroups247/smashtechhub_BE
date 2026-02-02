@@ -1,4 +1,6 @@
 // src/api/v1/controllers/contact.controller.ts
+/// <reference path="../../../shared/types/express.d.ts" />
+
 import { Request, Response, NextFunction } from 'express';
 import { contactService } from '@/domain/contact/services/contact.service';
 import { successResponse } from '@/shared/utils/response.util';
