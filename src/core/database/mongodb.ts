@@ -48,7 +48,7 @@ class MongoDBConnection {
       logger.info('MongoDB connected successfully');
       logger.info(`Database: ${mongoose.connection.name}`);
     } catch (error) {
-      logger.error('MongoDB connection error:', error);
+      logger.error('MongoDB connection error:', { error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
 
@@ -58,7 +58,7 @@ class MongoDBConnection {
     });
 
     mongoose.connection.on('error', (err) => {
-      logger.error('Mongoose connection error:', err);
+      logger.error('Mongoose connection error:', { error: err instanceof Error ? err.message : String(err) });
     });
 
     mongoose.connection.on('disconnected', () => {
@@ -91,7 +91,7 @@ class MongoDBConnection {
       this.isConnected = false;
       logger.info('MongoDB disconnected gracefully');
     } catch (error) {
-      logger.error('Error disconnecting from MongoDB:', error);
+      logger.error('Error disconnecting from MongoDB:', { error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   }
