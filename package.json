@@ -8,7 +8,11 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "seed:pricing": "ts-node -r tsconfig-paths/register scripts/seed-pricing.ts",
+    "seed:contacts": "ts-node -r tsconfig-paths/register scripts/seed-contacts.ts",
+    "seed:admin": "ts-node -r tsconfig-paths/register scripts/create-admin.ts",
+    "seed:all": "npm run seed:admin && npm run seed:pricing && npm run seed:contacts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
