@@ -1,3 +1,4 @@
+// src/domain/auth/services/auth.service.ts
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { userRepository } from '../repositories/user.repository';
@@ -24,9 +25,13 @@ export const authService = {
       throw new AppError('Invalid credentials', 401);
     }
 
-    // Generate tokens
+    // Generate tokens - INCLUDE ROLE
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { 
+        id: user.id, 
+        email: user.email,
+        role: user.role  // Include role in JWT payload
+      },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn } as jwt.SignOptions
     );
@@ -63,15 +68,19 @@ export const authService = {
     // Hash password
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    // Create user
+    // Create user with default 'user' role
     const user = await userRepository.create({
       ...data,
       password: hashedPassword,
     });
 
-    // Generate token
+    // Generate token - INCLUDE ROLE
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { 
+        id: user.id, 
+        email: user.email,
+        role: user.role || 'user'  // Include role in JWT payload
+      },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn } as jwt.SignOptions
     );
