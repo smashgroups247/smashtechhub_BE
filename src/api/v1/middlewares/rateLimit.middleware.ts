@@ -35,10 +35,7 @@ export const contactRateLimiter = rateLimit({
     }
     return false;
   },
-  // Key generator - use IP address
-  keyGenerator: (req: Request) => {
-    return req.ip || req.socket.remoteAddress || 'unknown';
-  },
+  // Use default IP-based key generation (handles IPv6 correctly)
 });
 
 /**
