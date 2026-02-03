@@ -1,5 +1,5 @@
 // src/domain/pricing/repositories/pricing.repository.ts
-import { PricingModel, IPricingDocument } from '../models/pricing.model';
+import { PricingModel, IPricing } from '../models/pricing.model';
 import { CreatePricingRequest, UpdatePricingRequest, PricingQueryFilters } from '../types';
 
 /**
@@ -10,7 +10,7 @@ export const pricingRepository = {
   /**
    * Create a new pricing plan
    */
-  create: async (data: CreatePricingRequest): Promise<IPricingDocument> => {
+  create: async (data: CreatePricingRequest): Promise<IPricing> => {
     const pricing = new PricingModel(data);
     return await pricing.save();
   },
@@ -19,7 +19,7 @@ export const pricingRepository = {
    * Find all pricing plans with pagination and filters
    */
   findAll: async (filters: PricingQueryFilters): Promise<{
-    data: IPricingDocument[];
+    data: IPricing[];
     total: number;
   }> => {
     const {
@@ -50,25 +50,24 @@ export const pricingRepository = {
         .sort(sort)
         .skip(skip)
         .limit(limit)
-        .lean()
         .exec(),
       PricingModel.countDocuments(query),
     ]);
 
-    return { data: data as IPricingDocument[], total };
+    return { data, total };
   },
 
   /**
    * Find pricing plan by ID
    */
-  findById: async (id: string): Promise<IPricingDocument | null> => {
+  findById: async (id: string): Promise<IPricing | null> => {
     return await PricingModel.findOne({ _id: id, deletedAt: null }).exec();
   },
 
   /**
    * Find pricing plan by name
    */
-  findByName: async (name: string): Promise<IPricingDocument | null> => {
+  findByName: async (name: string): Promise<IPricing | null> => {
     return await PricingModel.findOne({ 
       name: { $regex: new RegExp(`^${name}$`, 'i') },
       deletedAt: null 
@@ -81,7 +80,7 @@ export const pricingRepository = {
   update: async (
     id: string,
     data: UpdatePricingRequest
-  ): Promise<IPricingDocument | null> => {
+  ): Promise<IPricing | null> => {
     return await PricingModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { $set: data },
@@ -92,7 +91,7 @@ export const pricingRepository = {
   /**
    * Soft delete pricing plan by ID
    */
-  softDelete: async (id: string): Promise<IPricingDocument | null> => {
+  softDelete: async (id: string): Promise<IPricing | null> => {
     return await PricingModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { $set: { deletedAt: new Date() } },
@@ -103,7 +102,7 @@ export const pricingRepository = {
   /**
    * Hard delete pricing plan by ID (use with caution)
    */
-  hardDelete: async (id: string): Promise<IPricingDocument | null> => {
+  hardDelete: async (id: string): Promise<IPricing | null> => {
     return await PricingModel.findByIdAndDelete(id).exec();
   },
 
@@ -127,7 +126,7 @@ export const pricingRepository = {
   /**
    * Get active pricing plans only
    */
-  findActive: async (): Promise<IPricingDocument[]> => {
+  findActive: async (): Promise<IPricing[]> => {
     return await PricingModel.find({ isActive: true, deletedAt: null })
       .sort({ displayOrder: 1 })
       .exec();
@@ -136,7 +135,7 @@ export const pricingRepository = {
   /**
    * Update display order
    */
-  updateDisplayOrder: async (id: string, displayOrder: number): Promise<IPricingDocument | null> => {
+  updateDisplayOrder: async (id: string, displayOrder: number): Promise<IPricing | null> => {
     return await PricingModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { $set: { displayOrder } },
