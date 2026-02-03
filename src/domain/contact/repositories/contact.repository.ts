@@ -1,5 +1,5 @@
 // src/domain/contact/repositories/contact.repository.ts
-import { ContactModel, IContactDocument } from '../models/contact.model';
+import { ContactModel, IContact } from '../models/contact.model';
 import { CreateContactRequest, UpdateContactStatusRequest, ContactQueryFilters } from '../types';
 
 /**
@@ -10,7 +10,7 @@ export const contactRepository = {
   /**
    * Create a new contact submission
    */
-  create: async (data: CreateContactRequest): Promise<IContactDocument> => {
+  create: async (data: CreateContactRequest): Promise<IContact> => {
     const contact = new ContactModel({
       ...data,
       status: 'new',
@@ -22,7 +22,7 @@ export const contactRepository = {
    * Find all contact submissions with pagination and filters
    */
   findAll: async (filters: ContactQueryFilters): Promise<{
-    data: IContactDocument[];
+    data: IContact[];
     total: number;
   }> => {
     const {
@@ -79,18 +79,17 @@ export const contactRepository = {
         .skip(skip)
         .limit(limit)
         .populate('resolvedBy', 'email firstName lastName')
-        .lean()
         .exec(),
       ContactModel.countDocuments(query),
     ]);
 
-    return { data: data as IContactDocument[], total };
+    return { data, total };
   },
 
   /**
    * Find contact submission by ID
    */
-  findById: async (id: string): Promise<IContactDocument | null> => {
+  findById: async (id: string): Promise<IContact | null> => {
     return await ContactModel.findOne({ _id: id, deletedAt: null })
       .populate('resolvedBy', 'email firstName lastName')
       .exec();
@@ -102,7 +101,7 @@ export const contactRepository = {
   updateStatus: async (
     id: string,
     data: UpdateContactStatusRequest
-  ): Promise<IContactDocument | null> => {
+  ): Promise<IContact | null> => {
     const updateData: any = {
       status: data.status,
     };
@@ -129,7 +128,7 @@ export const contactRepository = {
   /**
    * Soft delete contact submission by ID
    */
-  softDelete: async (id: string): Promise<IContactDocument | null> => {
+  softDelete: async (id: string): Promise<IContact | null> => {
     return await ContactModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { $set: { deletedAt: new Date() } },
@@ -179,7 +178,7 @@ export const contactRepository = {
   /**
    * Get recent submissions by email
    */
-  findByEmail: async (email: string, limit: number = 5): Promise<IContactDocument[]> => {
+  findByEmail: async (email: string, limit: number = 5): Promise<IContact[]> => {
     return await ContactModel.find({ email, deletedAt: null })
       .sort({ createdAt: -1 })
       .limit(limit)
