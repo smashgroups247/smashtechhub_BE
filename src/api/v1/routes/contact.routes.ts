@@ -7,8 +7,9 @@ import { contactRateLimiter } from '../middlewares/rateLimit.middleware';
 import {
   validateCreateContact,
   validateUpdateContactStatus,
-  validateContactQuery,
+  validatePatchContact,
   validateContactId,
+  validateContactQuery,
 } from '../validators/contact.validator';
 
 export const contactRouter = Router();
@@ -17,14 +18,15 @@ export const contactRouter = Router();
  * @swagger
  * tags:
  *   name: Contact
- *   description: Contact form submissions management endpoints
+ *   description: Contact Us endpoints
  */
 
+// ─── POST /contact ────────────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/contact:
  *   post:
- *     summary: Submit contact form
+ *     summary: Submit a contact form
  *     tags: [Contact]
  *     requestBody:
  *       required: true
@@ -48,35 +50,16 @@ export const contactRouter = Router();
  *               serviceOfInterest:
  *                 type: string
  *                 enum: [Web Development, Mobile App Development, UI/UX Design, Digital Marketing, E-commerce Solutions, Custom Software, Consulting, Other]
- *                 example: Web Development
  *               projectDetails:
  *                 type: string
- *                 minLength: 10
- *                 maxLength: 2000
- *                 example: I need a custom e-commerce website with payment integration
+ *                 example: We need a full-stack e-commerce platform built with React and Node.js
  *     responses:
  *       201:
  *         description: Contact form submitted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 statusCode:
- *                   type: number
- *                   example: 201
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Contact form submitted successfully. We'll get back to you soon!
- *                 data:
- *                   $ref: '#/components/schemas/Contact'
  *       400:
  *         description: Validation error
  *       429:
- *         description: Too many requests (rate limit exceeded)
+ *         description: Rate limited – recent submission exists
  */
 contactRouter.post(
   '/',
@@ -85,108 +68,13 @@ contactRouter.post(
   contactController.createContact
 );
 
-/**
- * @swagger
- * /api/v1/contact:
- *   get:
- *     summary: Get all contact submissions with pagination
- *     tags: [Contact]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 20
- *         description: Number of items per page
- *       - in: query
- *         name: sortBy
- *         schema:
- *           type: string
- *           enum: [fullName, email, status, createdAt, updatedAt]
- *           default: createdAt
- *         description: Field to sort by
- *       - in: query
- *         name: sortOrder
- *         schema:
- *           type: string
- *           enum: [asc, desc]
- *           default: desc
- *         description: Sort order
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [new, in-progress, resolved]
- *         description: Filter by status
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Filter from date (ISO 8601 format)
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Filter to date (ISO 8601 format)
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search in name, email, service, or project details
- *     responses:
- *       200:
- *         description: Contact submissions retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 statusCode:
- *                   type: number
- *                   example: 200
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Contact submissions retrieved successfully
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Contact'
- *                 pagination:
- *                   $ref: '#/components/schemas/Pagination'
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
- */
-contactRouter.get(
-  '/',
-  authenticate,
-  isAdmin,
-  validateContactQuery,
-  contactController.getAllContacts
-);
-
+// ─── GET /contact/stats ───────────────────────────────────────────────────────
+// NOTE: /stats must come BEFORE /:id so Express doesn't treat "stats" as an id.
 /**
  * @swagger
  * /api/v1/contact/stats:
  *   get:
- *     summary: Get contact submissions statistics
+ *     summary: Get contact submission counts by status
  *     tags: [Contact]
  *     security:
  *       - bearerAuth: []
@@ -198,34 +86,14 @@ contactRouter.get(
  *             schema:
  *               type: object
  *               properties:
- *                 statusCode:
+ *                 new:
  *                   type: number
- *                   example: 200
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Contact statistics retrieved successfully
- *                 data:
- *                   type: object
- *                   properties:
- *                     new:
- *                       type: number
- *                       example: 25
- *                     inProgress:
- *                       type: number
- *                       example: 10
- *                     resolved:
- *                       type: number
- *                       example: 50
- *                     total:
- *                       type: number
- *                       example: 85
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
+ *                 inProgress:
+ *                   type: number
+ *                 resolved:
+ *                   type: number
+ *                 total:
+ *                   type: number
  */
 contactRouter.get(
   '/stats',
@@ -234,11 +102,107 @@ contactRouter.get(
   contactController.getContactStats
 );
 
+// ─── GET /contact/email/:email ────────────────────────────────────────────────
+/**
+ * @swagger
+ * /api/v1/contact/email/{email}:
+ *   get:
+ *     summary: Get all submissions from a specific email address
+ *     tags: [Contact]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *     responses:
+ *       200:
+ *         description: Contact submissions retrieved successfully
+ */
+contactRouter.get(
+  '/email/:email',
+  authenticate,
+  isAdmin,
+  contactController.getContactsByEmail
+);
+
+// ─── GET /contact ─────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /api/v1/contact:
+ *   get:
+ *     summary: Get all contact submissions with pagination & filters
+ *     tags: [Contact]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, updatedAt, status, fullName]
+ *           default: createdAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [new, in-progress, resolved]
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Contact submissions retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+contactRouter.get(
+  '/',
+  authenticate,
+  isAdmin,
+  validateContactQuery,
+  contactController.getAllContacts
+);
+
+// ─── GET /contact/:id ─────────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/contact/{id}:
  *   get:
- *     summary: Get contact submission by ID
+ *     summary: Get a single contact submission by ID
  *     tags: [Contact]
  *     security:
  *       - bearerAuth: []
@@ -248,16 +212,11 @@ contactRouter.get(
  *         required: true
  *         schema:
  *           type: string
- *         description: Contact submission ID
  *     responses:
  *       200:
  *         description: Contact submission retrieved successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
  *       404:
- *         description: Contact submission not found
+ *         description: Not found
  */
 contactRouter.get(
   '/:id',
@@ -267,11 +226,14 @@ contactRouter.get(
   contactController.getContactById
 );
 
+// ─── PATCH /contact/:id/status ────────────────────────────────────────────────
+// NOTE: /status sub-route must come BEFORE the bare /:id PATCH so Express
+// matches the longer path first.
 /**
  * @swagger
  * /api/v1/contact/{id}/status:
  *   patch:
- *     summary: Update contact submission status
+ *     summary: Update contact status (narrow action – status + optional notes)
  *     tags: [Contact]
  *     security:
  *       - bearerAuth: []
@@ -281,7 +243,6 @@ contactRouter.get(
  *         required: true
  *         schema:
  *           type: string
- *         description: Contact submission ID
  *     requestBody:
  *       required: true
  *       content:
@@ -294,22 +255,15 @@ contactRouter.get(
  *               status:
  *                 type: string
  *                 enum: [new, in-progress, resolved]
- *                 example: in-progress
  *               adminNotes:
  *                 type: string
- *                 maxLength: 1000
- *                 example: Contacted customer via email
  *     responses:
  *       200:
- *         description: Contact submission status updated successfully
+ *         description: Contact status updated successfully
  *       400:
  *         description: Validation error
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
  *       404:
- *         description: Contact submission not found
+ *         description: Not found
  */
 contactRouter.patch(
   '/:id/status',
@@ -320,11 +274,12 @@ contactRouter.patch(
   contactController.updateContactStatus
 );
 
+// ─── PATCH /contact/:id ───────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/contact/{id}:
- *   delete:
- *     summary: Delete contact submission (soft delete)
+ *   patch:
+ *     summary: Partially update a contact submission (only sent fields change)
  *     tags: [Contact]
  *     security:
  *       - bearerAuth: []
@@ -334,16 +289,74 @@ contactRouter.patch(
  *         required: true
  *         schema:
  *           type: string
- *         description: Contact submission ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             minProperties: 1
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               serviceOfInterest:
+ *                 type: string
+ *                 enum: [Web Development, Mobile App Development, UI/UX Design, Digital Marketing, E-commerce Solutions, Custom Software, Consulting, Other]
+ *               projectDetails:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [new, in-progress, resolved]
+ *               adminNotes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Contact submission patched successfully
+ *       400:
+ *         description: Validation error or empty body
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Not found
+ */
+contactRouter.patch(
+  '/:id',
+  authenticate,
+  isAdmin,
+  validateContactId,
+  validatePatchContact,
+  contactController.patchContact
+);
+
+// ─── DELETE /contact/:id ──────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /api/v1/contact/{id}:
+ *   delete:
+ *     summary: Soft-delete a contact submission
+ *     tags: [Contact]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: Contact submission deleted successfully
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden - Admin access required
+ *         description: Forbidden
  *       404:
- *         description: Contact submission not found
+ *         description: Not found
  */
 contactRouter.delete(
   '/:id',
@@ -352,61 +365,3 @@ contactRouter.delete(
   validateContactId,
   contactController.deleteContact
 );
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Contact:
- *       type: object
- *       properties:
- *         _id:
- *           type: string
- *           example: 507f1f77bcf86cd799439013
- *         fullName:
- *           type: string
- *           example: John Doe
- *         email:
- *           type: string
- *           example: john@example.com
- *         serviceOfInterest:
- *           type: string
- *           example: Web Development
- *         projectDetails:
- *           type: string
- *           example: I need a custom e-commerce website
- *         status:
- *           type: string
- *           enum: [new, in-progress, resolved]
- *           example: new
- *         adminNotes:
- *           type: string
- *           example: Contacted customer via email
- *         resolvedBy:
- *           type: string
- *           example: 507f1f77bcf86cd799439014
- *         resolvedAt:
- *           type: string
- *           format: date-time
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
- *     Pagination:
- *       type: object
- *       properties:
- *         page:
- *           type: number
- *           example: 1
- *         limit:
- *           type: number
- *           example: 20
- *         total:
- *           type: number
- *           example: 45
- *         totalPages:
- *           type: number
- *           example: 3
- */

@@ -4,6 +4,7 @@ import { AppError } from '@/shared/errors/AppError';
 import {
   CreatePricingRequest,
   UpdatePricingRequest,
+  PatchPricingRequest,
   PricingQueryFilters,
   PricingResponse,
   PaginatedPricingResponse,
@@ -18,24 +19,20 @@ export const pricingService = {
    * Create a new pricing plan
    */
   createPricing: async (data: CreatePricingRequest): Promise<PricingResponse> => {
-    // Check if pricing plan with same name already exists
     const existingPricing = await pricingRepository.existsByName(data.name);
-    
+
     if (existingPricing) {
       throw new AppError('Pricing plan with this name already exists', 400);
     }
 
-    // Validate price
     if (data.price < 0) {
       throw new AppError('Price cannot be negative', 400);
     }
 
-    // Validate features
     if (!data.features || data.features.length === 0) {
       throw new AppError('At least one feature is required', 400);
     }
 
-    // Set default values
     const pricingData = {
       ...data,
       isActive: data.isActive !== undefined ? data.isActive : true,
@@ -54,9 +51,8 @@ export const pricingService = {
   getAllPricing: async (
     filters: PricingQueryFilters
   ): Promise<PaginatedPricingResponse> => {
-    // Validate and set defaults
     const page = Math.max(1, filters.page || 1);
-    const limit = Math.min(100, Math.max(1, filters.limit || 10)); // Max 100 items per page
+    const limit = Math.min(100, Math.max(1, filters.limit || 10));
 
     const { data, total } = await pricingRepository.findAll({
       ...filters,
@@ -91,34 +87,29 @@ export const pricingService = {
   },
 
   /**
-   * Update pricing plan
+   * Update pricing plan (PUT — full replace)
    */
   updatePricing: async (
     id: string,
     data: UpdatePricingRequest
   ): Promise<PricingResponse> => {
-    // Check if pricing plan exists
     const existingPricing = await pricingRepository.findById(id);
 
     if (!existingPricing) {
       throw new AppError('Pricing plan not found', 404);
     }
 
-    // If name is being updated, check for duplicates
     if (data.name && data.name !== existingPricing.name) {
       const nameExists = await pricingRepository.existsByName(data.name, id);
-      
       if (nameExists) {
         throw new AppError('Pricing plan with this name already exists', 400);
       }
     }
 
-    // Validate price if provided
     if (data.price !== undefined && data.price < 0) {
       throw new AppError('Price cannot be negative', 400);
     }
 
-    // Validate features if provided
     if (data.features && data.features.length === 0) {
       throw new AppError('At least one feature is required', 400);
     }
@@ -130,6 +121,44 @@ export const pricingService = {
     }
 
     return updatedPricing.toJSON() as PricingResponse;
+  },
+
+  /**
+   * Patch pricing plan (PATCH — partial update, only sent fields change)
+   */
+  patchPricing: async (
+    id: string,
+    data: PatchPricingRequest
+  ): Promise<PricingResponse> => {
+    const existingPricing = await pricingRepository.findById(id);
+
+    if (!existingPricing) {
+      throw new AppError('Pricing plan not found', 404);
+    }
+
+    // Duplicate-name guard only fires when name is actually being changed
+    if (data.name !== undefined && data.name !== existingPricing.name) {
+      const nameExists = await pricingRepository.existsByName(data.name, id);
+      if (nameExists) {
+        throw new AppError('Pricing plan with this name already exists', 400);
+      }
+    }
+
+    if (data.price !== undefined && data.price < 0) {
+      throw new AppError('Price cannot be negative', 400);
+    }
+
+    if (data.features !== undefined && data.features.length === 0) {
+      throw new AppError('At least one feature is required', 400);
+    }
+
+    const patchedPricing = await pricingRepository.patch(id, data);
+
+    if (!patchedPricing) {
+      throw new AppError('Failed to patch pricing plan', 500);
+    }
+
+    return patchedPricing.toJSON() as PricingResponse;
   },
 
   /**
@@ -163,7 +192,7 @@ export const pricingService = {
       throw new AppError('Pricing plan not found', 404);
     }
 
-    const updatedPricing = await pricingRepository.update(id, {
+    const updatedPricing = await pricingRepository.patch(id, {
       isActive: !pricing.isActive,
     });
 

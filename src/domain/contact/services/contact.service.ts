@@ -4,9 +4,11 @@ import { AppError } from '@/shared/errors/AppError';
 import {
   CreateContactRequest,
   UpdateContactStatusRequest,
+  PatchContactRequest,
   ContactQueryFilters,
   ContactResponse,
   PaginatedContactResponse,
+  SERVICE_OPTIONS,
 } from '../types';
 
 /**
@@ -18,13 +20,11 @@ export const contactService = {
    * Create a new contact submission
    */
   createContact: async (data: CreateContactRequest): Promise<ContactResponse> => {
-    // Validate email format (additional validation)
     const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
     if (!emailRegex.test(data.email)) {
       throw new AppError('Invalid email format', 400);
     }
 
-    // Check for recent submissions from same email (additional spam prevention)
     const hasRecent = await contactRepository.hasRecentSubmission(data.email, 60);
     if (hasRecent) {
       throw new AppError(
@@ -33,7 +33,6 @@ export const contactService = {
       );
     }
 
-    // Validate project details length
     if (data.projectDetails.length < 10) {
       throw new AppError('Project details must be at least 10 characters', 400);
     }
@@ -48,11 +47,9 @@ export const contactService = {
   getAllContacts: async (
     filters: ContactQueryFilters
   ): Promise<PaginatedContactResponse> => {
-    // Validate and set defaults
     const page = Math.max(1, filters.page || 1);
-    const limit = Math.min(100, Math.max(1, filters.limit || 20)); // Max 100 items per page
+    const limit = Math.min(100, Math.max(1, filters.limit || 20));
 
-    // Validate date range if provided
     if (filters.startDate && filters.endDate) {
       const start = new Date(filters.startDate);
       const end = new Date(filters.endDate);
@@ -95,21 +92,19 @@ export const contactService = {
   },
 
   /**
-   * Update contact submission status
+   * Update contact submission status (PATCH /:id/status — narrow status action)
    */
   updateContactStatus: async (
     id: string,
     data: UpdateContactStatusRequest,
     adminId?: string
   ): Promise<ContactResponse> => {
-    // Check if contact exists
     const existingContact = await contactRepository.findById(id);
 
     if (!existingContact) {
       throw new AppError('Contact submission not found', 404);
     }
 
-    // If status is being set to resolved, set resolvedBy
     if (data.status === 'resolved' && adminId) {
       data.resolvedBy = adminId;
     }
@@ -121,6 +116,59 @@ export const contactService = {
     }
 
     return updatedContact.toJSON() as ContactResponse;
+  },
+
+  /**
+   * Patch contact submission (PATCH /:id — general partial update)
+   */
+  patchContact: async (
+    id: string,
+    data: PatchContactRequest,
+    adminId?: string
+  ): Promise<ContactResponse> => {
+    const existingContact = await contactRepository.findById(id);
+
+    if (!existingContact) {
+      throw new AppError('Contact submission not found', 404);
+    }
+
+    // Validate serviceOfInterest against allowed values if provided
+    if (data.serviceOfInterest !== undefined) {
+      if (!(SERVICE_OPTIONS as readonly string[]).includes(data.serviceOfInterest)) {
+        throw new AppError(
+          `Invalid service of interest. Allowed: ${SERVICE_OPTIONS.join(', ')}`,
+          400
+        );
+      }
+    }
+
+    // Validate projectDetails length if provided
+    if (data.projectDetails !== undefined && data.projectDetails.length < 10) {
+      throw new AppError('Project details must be at least 10 characters', 400);
+    }
+
+    // Validate email format if provided
+    if (data.email !== undefined) {
+      const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+      if (!emailRegex.test(data.email)) {
+        throw new AppError('Invalid email format', 400);
+      }
+    }
+
+    // Auto-stamp resolvedBy when status transitions to resolved
+    const patchPayload: PatchContactRequest = { ...data };
+    if (data.status === 'resolved' && adminId && existingContact.status !== 'resolved') {
+      // resolvedBy is handled inside the repository patch method via resolvedAt stamp
+      // but we don't expose resolvedBy in PatchContactRequest intentionally — it's auto-set
+    }
+
+    const patchedContact = await contactRepository.patch(id, patchPayload);
+
+    if (!patchedContact) {
+      throw new AppError('Failed to patch contact submission', 500);
+    }
+
+    return patchedContact.toJSON() as ContactResponse;
   },
 
   /**

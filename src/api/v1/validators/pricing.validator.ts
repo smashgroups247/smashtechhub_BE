@@ -29,9 +29,49 @@ const createPricingSchema = Joi.object({
 });
 
 /**
- * Validation Schema for Updating Pricing Plan
+ * PUT — full resource replacement.
+ * Every mutable field is required; the response will be exactly this payload persisted.
  */
-const updatePricingSchema = Joi.object({
+const putPricingSchema = Joi.object({
+  name: Joi.string().trim().min(3).max(100).required().messages({
+    'string.empty': 'Plan name is required',
+    'string.min': 'Plan name must be at least 3 characters',
+    'string.max': 'Plan name cannot exceed 100 characters',
+    'any.required': 'Plan name is required',
+  }),
+  price: Joi.number().min(0).required().messages({
+    'number.base': 'Price must be a number',
+    'number.min': 'Price cannot be negative',
+    'any.required': 'Price is required',
+  }),
+  currency: Joi.string().uppercase().valid('NGN', 'USD', 'EUR', 'GBP').required().messages({
+    'any.only': 'Currency must be one of: NGN, USD, EUR, GBP',
+    'any.required': 'Currency is required',
+  }),
+  billingCycle: Joi.string().lowercase().valid('monthly', 'yearly', 'one-time').required().messages({
+    'any.only': 'Billing cycle must be one of: monthly, yearly, one-time',
+    'any.required': 'Billing cycle is required',
+  }),
+  features: Joi.array().items(Joi.string().trim()).min(1).required().messages({
+    'array.min': 'At least one feature is required',
+    'any.required': 'Features are required',
+  }),
+  description: Joi.string().trim().max(500).allow('').required().messages({
+    'any.required': 'Description is required (use empty string if none)',
+  }),
+  isActive: Joi.boolean().required().messages({
+    'any.required': 'isActive is required',
+  }),
+  displayOrder: Joi.number().min(0).required().messages({
+    'any.required': 'displayOrder is required',
+  }),
+});
+
+/**
+ * PATCH — partial update.
+ * All fields optional, but at least one must be present.
+ */
+const patchPricingSchema = Joi.object({
   name: Joi.string().trim().min(3).max(100).optional(),
   price: Joi.number().min(0).optional(),
   currency: Joi.string().uppercase().valid('NGN', 'USD', 'EUR', 'GBP').optional(),
@@ -41,7 +81,7 @@ const updatePricingSchema = Joi.object({
   isActive: Joi.boolean().optional(),
   displayOrder: Joi.number().min(0).optional(),
 }).min(1).messages({
-  'object.min': 'At least one field must be provided for update',
+  'object.min': 'At least one field must be provided for patch',
 });
 
 /**
@@ -66,15 +106,14 @@ const idParamSchema = Joi.object({
   }),
 });
 
-/**
- * Middleware: Validate Create Pricing Request
- */
-export const validateCreatePricing = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { error, value } = createPricingSchema.validate(req.body, {
+// ---------------------------------------------------------------------------
+// Generic middleware factory — keeps every exported validator DRY
+// ---------------------------------------------------------------------------
+const validate = (
+  schema: Joi.ObjectSchema,
+  target: 'body' | 'query' | 'params'
+) => (req: Request, res: Response, next: NextFunction) => {
+  const { error, value } = schema.validate(req[target], {
     abortEarly: false,
     stripUnknown: true,
   });
@@ -87,80 +126,32 @@ export const validateCreatePricing = (
     return errorResponse(res, 400, 'Validation error', errors);
   }
 
-  req.body = value;
+  (req as any)[target] = value;
   next();
 };
 
-/**
- * Middleware: Validate Update Pricing Request
- */
-export const validateUpdatePricing = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { error, value } = updatePricingSchema.validate(req.body, {
-    abortEarly: false,
-    stripUnknown: true,
-  });
+// ---------------------------------------------------------------------------
+// Exported middleware
+// ---------------------------------------------------------------------------
 
-  if (error) {
-    const errors: Record<string, string> = {};
-    error.details.forEach((detail) => {
-      errors[detail.path.join('.')] = detail.message;
-    });
-    return errorResponse(res, 400, 'Validation error', errors);
-  }
+/** POST /pricing */
+export const validateCreatePricing = validate(createPricingSchema, 'body');
 
-  req.body = value;
-  next();
-};
+/** PUT /pricing/:id  — requires every field */
+export const validatePutPricing = validate(putPricingSchema, 'body');
 
-/**
- * Middleware: Validate Query Parameters
- */
-export const validatePricingQuery = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { error, value } = queryPricingSchema.validate(req.query, {
-    abortEarly: false,
-    stripUnknown: true,
-  });
+/** PATCH /pricing/:id — requires at least one field */
+export const validatePatchPricing = validate(patchPricingSchema, 'body');
 
-  if (error) {
-    const errors: Record<string, string> = {};
-    error.details.forEach((detail) => {
-      errors[detail.path.join('.')] = detail.message;
-    });
-    return errorResponse(res, 400, 'Validation error', errors);
-  }
+/** GET /pricing  (query string) */
+export const validatePricingQuery = validate(queryPricingSchema, 'query');
 
-  req.query = value;
-  next();
-};
+/** Any route that takes :id */
+export const validatePricingId = validate(idParamSchema, 'params');
 
-/**
- * Middleware: Validate ID Parameter
- */
-export const validatePricingId = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { error, value } = idParamSchema.validate(req.params, {
-    abortEarly: false,
-  });
-
-  if (error) {
-    const errors: Record<string, string> = {};
-    error.details.forEach((detail) => {
-      errors[detail.path.join('.')] = detail.message;
-    });
-    return errorResponse(res, 400, 'Validation error', errors);
-  }
-
-  req.params = value;
-  next();
-};
+// ---------------------------------------------------------------------------
+// Kept for backwards compat — points to the PUT validator.
+// Remove once all consumers migrate to validatePutPricing.
+// ---------------------------------------------------------------------------
+/** @deprecated Use validatePutPricing */
+export const validateUpdatePricing = validatePutPricing;

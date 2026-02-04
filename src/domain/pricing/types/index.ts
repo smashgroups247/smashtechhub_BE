@@ -33,9 +33,23 @@ export interface CreatePricingRequest {
 }
 
 /**
- * Update Pricing Request
+ * Update Pricing Request (PUT — full replace, all fields expected)
  */
 export interface UpdatePricingRequest {
+  name: string;
+  price: number;
+  currency: string;
+  billingCycle: string;
+  features: string[];
+  description?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+/**
+ * Patch Pricing Request (PATCH — partial update, only sent fields change)
+ */
+export interface PatchPricingRequest {
   name?: string;
   price?: number;
   currency?: string;

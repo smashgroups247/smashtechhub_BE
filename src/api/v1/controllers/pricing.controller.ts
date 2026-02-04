@@ -4,7 +4,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { pricingService } from '@/domain/pricing/services/pricing.service';
 import { successResponse } from '@/shared/utils/response.util';
-import { CreatePricingRequest, UpdatePricingRequest, PricingQueryFilters } from '@/domain/pricing/types';
+import { CreatePricingRequest, UpdatePricingRequest, PatchPricingRequest, PricingQueryFilters } from '@/domain/pricing/types';
 
 /**
  * Pricing Controller
@@ -19,9 +19,9 @@ export const pricingController = {
   createPricing: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data: CreatePricingRequest = req.body;
-      
+
       const pricing = await pricingService.createPricing(data);
-      
+
       return successResponse(
         res,
         201,
@@ -45,12 +45,12 @@ export const pricingController = {
         limit: parseInt(req.query.limit as string) || 10,
         sortBy: req.query.sortBy as string,
         sortOrder: req.query.sortOrder as 'asc' | 'desc',
-        isActive: req.query.isActive === 'true' ? true : 
+        isActive: req.query.isActive === 'true' ? true :
                   req.query.isActive === 'false' ? false : undefined,
       };
 
       const result = await pricingService.getAllPricing(filters);
-      
+
       return res.status(200).json({
         statusCode: 200,
         success: true,
@@ -71,9 +71,9 @@ export const pricingController = {
   getPricingById: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      
+
       const pricing = await pricingService.getPricingById(id);
-      
+
       return successResponse(
         res,
         200,
@@ -86,7 +86,7 @@ export const pricingController = {
   },
 
   /**
-   * Update pricing plan
+   * Update pricing plan (full replace)
    * PUT /api/v1/pricing/:id
    * @access Admin
    */
@@ -94,13 +94,36 @@ export const pricingController = {
     try {
       const { id } = req.params;
       const data: UpdatePricingRequest = req.body;
-      
+
       const pricing = await pricingService.updatePricing(id, data);
-      
+
       return successResponse(
         res,
         200,
         'Pricing plan updated successfully',
+        pricing
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Patch pricing plan (partial update — only sent fields change)
+   * PATCH /api/v1/pricing/:id
+   * @access Admin
+   */
+  patchPricing: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const data: PatchPricingRequest = req.body;
+
+      const pricing = await pricingService.patchPricing(id, data);
+
+      return successResponse(
+        res,
+        200,
+        'Pricing plan patched successfully',
         pricing
       );
     } catch (error) {
@@ -116,9 +139,9 @@ export const pricingController = {
   deletePricing: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      
+
       await pricingService.deletePricing(id);
-      
+
       return successResponse(
         res,
         200,
@@ -137,7 +160,7 @@ export const pricingController = {
   getActivePricing: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const pricing = await pricingService.getActivePricing();
-      
+
       return successResponse(
         res,
         200,
@@ -157,9 +180,9 @@ export const pricingController = {
   togglePricingStatus: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      
+
       const pricing = await pricingService.toggleActiveStatus(id);
-      
+
       return successResponse(
         res,
         200,

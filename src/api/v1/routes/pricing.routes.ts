@@ -5,7 +5,8 @@ import { authenticate } from '../middlewares/auth.middleware';
 import { isAdmin } from '../middlewares/admin.middleware';
 import {
   validateCreatePricing,
-  validateUpdatePricing,
+  validatePutPricing,
+  validatePatchPricing,
   validatePricingQuery,
   validatePricingId,
 } from '../validators/pricing.validator';
@@ -19,6 +20,7 @@ export const pricingRouter = Router();
  *   description: Pricing plans management endpoints
  */
 
+// ─── POST /pricing ────────────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/pricing:
@@ -48,52 +50,32 @@ export const pricingRouter = Router();
  *                 type: string
  *                 enum: [NGN, USD, EUR, GBP]
  *                 default: NGN
- *                 example: NGN
  *               billingCycle:
  *                 type: string
  *                 enum: [monthly, yearly, one-time]
  *                 default: monthly
- *                 example: monthly
  *               features:
  *                 type: array
  *                 items:
  *                   type: string
- *                 example: ["Unlimited QRA codes", "Priority Support", "Analytics Dashboard"]
+ *                 example: ["Unlimited QRA codes", "Priority Support"]
  *               description:
  *                 type: string
- *                 example: Perfect for growing businesses
  *               isActive:
  *                 type: boolean
  *                 default: true
  *               displayOrder:
  *                 type: number
  *                 default: 0
- *                 example: 2
  *     responses:
  *       201:
  *         description: Pricing plan created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 statusCode:
- *                   type: number
- *                   example: 201
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Pricing plan created successfully
- *                 data:
- *                   $ref: '#/components/schemas/Pricing'
  *       400:
- *         description: Validation error
+ *         description: Validation error or duplicate name
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden - Admin access required
+ *         description: Forbidden – admin access required
  */
 pricingRouter.post(
   '/',
@@ -103,6 +85,7 @@ pricingRouter.post(
   pricingController.createPricing
 );
 
+// ─── GET /pricing ─────────────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/pricing:
@@ -116,7 +99,6 @@ pricingRouter.post(
  *           type: integer
  *           minimum: 1
  *           default: 1
- *         description: Page number
  *       - in: query
  *         name: limit
  *         schema:
@@ -124,58 +106,25 @@ pricingRouter.post(
  *           minimum: 1
  *           maximum: 100
  *           default: 10
- *         description: Number of items per page
  *       - in: query
  *         name: sortBy
  *         schema:
  *           type: string
  *           enum: [name, price, displayOrder, createdAt, updatedAt]
  *           default: displayOrder
- *         description: Field to sort by
  *       - in: query
  *         name: sortOrder
  *         schema:
  *           type: string
  *           enum: [asc, desc]
  *           default: asc
- *         description: Sort order
  *       - in: query
  *         name: isActive
  *         schema:
  *           type: boolean
- *         description: Filter by active status
  *     responses:
  *       200:
  *         description: Pricing plans retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 statusCode:
- *                   type: number
- *                   example: 200
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Pricing plans retrieved successfully
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Pricing'
- *                 pagination:
- *                   type: object
- *                   properties:
- *                     page:
- *                       type: number
- *                     limit:
- *                       type: number
- *                     total:
- *                       type: number
- *                     totalPages:
- *                       type: number
  */
 pricingRouter.get(
   '/',
@@ -183,39 +132,23 @@ pricingRouter.get(
   pricingController.getAllPricing
 );
 
+// ─── GET /pricing/active ──────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/pricing/active:
  *   get:
- *     summary: Get only active pricing plans
+ *     summary: Get only active pricing plans (no pagination – lightweight list)
  *     tags: [Pricing]
  *     responses:
  *       200:
  *         description: Active pricing plans retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 statusCode:
- *                   type: number
- *                   example: 200
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Active pricing plans retrieved successfully
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Pricing'
  */
 pricingRouter.get(
   '/active',
   pricingController.getActivePricing
 );
 
+// ─── GET /pricing/:id ─────────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/pricing/{id}:
@@ -228,26 +161,10 @@ pricingRouter.get(
  *         required: true
  *         schema:
  *           type: string
- *         description: Pricing plan ID
+ *         description: MongoDB ObjectId of the pricing plan
  *     responses:
  *       200:
  *         description: Pricing plan retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 statusCode:
- *                   type: number
- *                   example: 200
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Pricing plan retrieved successfully
- *                 data:
- *                   $ref: '#/components/schemas/Pricing'
  *       404:
  *         description: Pricing plan not found
  */
@@ -257,11 +174,12 @@ pricingRouter.get(
   pricingController.getPricingById
 );
 
+// ─── PUT /pricing/:id ─────────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/pricing/{id}:
  *   put:
- *     summary: Update pricing plan
+ *     summary: Full-replace a pricing plan (all fields required)
  *     tags: [Pricing]
  *     security:
  *       - bearerAuth: []
@@ -271,13 +189,21 @@ pricingRouter.get(
  *         required: true
  *         schema:
  *           type: string
- *         description: Pricing plan ID
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
+ *               - price
+ *               - currency
+ *               - billingCycle
+ *               - features
+ *               - description
+ *               - isActive
+ *               - displayOrder
  *             properties:
  *               name:
  *                 type: string
@@ -303,11 +229,11 @@ pricingRouter.get(
  *       200:
  *         description: Pricing plan updated successfully
  *       400:
- *         description: Validation error
+ *         description: Validation error – missing required fields
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden - Admin access required
+ *         description: Forbidden – admin access required
  *       404:
  *         description: Pricing plan not found
  */
@@ -316,15 +242,16 @@ pricingRouter.put(
   authenticate,
   isAdmin,
   validatePricingId,
-  validateUpdatePricing,
+  validatePutPricing,
   pricingController.updatePricing
 );
 
+// ─── PATCH /pricing/:id ───────────────────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/pricing/{id}:
- *   delete:
- *     summary: Delete pricing plan (soft delete)
+ *   patch:
+ *     summary: Partially update a pricing plan (only sent fields change)
  *     tags: [Pricing]
  *     security:
  *       - bearerAuth: []
@@ -334,30 +261,61 @@ pricingRouter.put(
  *         required: true
  *         schema:
  *           type: string
- *         description: Pricing plan ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             minProperties: 1
+ *             properties:
+ *               name:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *                 enum: [NGN, USD, EUR, GBP]
+ *               billingCycle:
+ *                 type: string
+ *                 enum: [monthly, yearly, one-time]
+ *               features:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               description:
+ *                 type: string
+ *               isActive:
+ *                 type: boolean
+ *               displayOrder:
+ *                 type: number
  *     responses:
  *       200:
- *         description: Pricing plan deleted successfully
+ *         description: Pricing plan patched successfully
+ *       400:
+ *         description: Validation error or empty body
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden - Admin access required
+ *         description: Forbidden – admin access required
  *       404:
  *         description: Pricing plan not found
  */
-pricingRouter.delete(
+pricingRouter.patch(
   '/:id',
   authenticate,
   isAdmin,
   validatePricingId,
-  pricingController.deletePricing
+  validatePatchPricing,
+  pricingController.patchPricing
 );
 
+// ─── PATCH /pricing/:id/toggle-status ────────────────────────────────────────
 /**
  * @swagger
  * /api/v1/pricing/{id}/toggle-status:
  *   patch:
- *     summary: Toggle pricing plan active status
+ *     summary: Toggle pricing plan isActive flag (no body required)
  *     tags: [Pricing]
  *     security:
  *       - bearerAuth: []
@@ -367,14 +325,13 @@ pricingRouter.delete(
  *         required: true
  *         schema:
  *           type: string
- *         description: Pricing plan ID
  *     responses:
  *       200:
- *         description: Pricing plan status updated successfully
+ *         description: Pricing plan status toggled successfully
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden - Admin access required
+ *         description: Forbidden – admin access required
  *       404:
  *         description: Pricing plan not found
  */
@@ -386,6 +343,40 @@ pricingRouter.patch(
   pricingController.togglePricingStatus
 );
 
+// ─── DELETE /pricing/:id ──────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /api/v1/pricing/{id}:
+ *   delete:
+ *     summary: Soft-delete a pricing plan
+ *     tags: [Pricing]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Pricing plan deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden – admin access required
+ *       404:
+ *         description: Pricing plan not found
+ */
+pricingRouter.delete(
+  '/:id',
+  authenticate,
+  isAdmin,
+  validatePricingId,
+  pricingController.deletePricing
+);
+
+// ─── Swagger component schema (referenced by other docs) ─────────────────────
 /**
  * @swagger
  * components:
@@ -398,30 +389,22 @@ pricingRouter.patch(
  *           example: 507f1f77bcf86cd799439011
  *         name:
  *           type: string
- *           example: Professional Plan
  *         price:
  *           type: number
- *           example: 350000
  *         currency:
  *           type: string
- *           example: NGN
  *         billingCycle:
  *           type: string
- *           example: monthly
  *         features:
  *           type: array
  *           items:
  *             type: string
- *           example: ["Unlimited QRA codes", "Priority Support"]
  *         description:
  *           type: string
- *           example: Perfect for growing businesses
  *         isActive:
  *           type: boolean
- *           example: true
  *         displayOrder:
  *           type: number
- *           example: 2
  *         createdAt:
  *           type: string
  *           format: date-time

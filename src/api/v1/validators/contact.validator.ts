@@ -2,7 +2,17 @@
 import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 import { errorResponse } from '@/shared/utils/response.util';
-import { SERVICE_OPTIONS } from '@/domain/contact/types';
+
+const SERVICE_OPTIONS = [
+  'Web Development',
+  'Mobile App Development',
+  'UI/UX Design',
+  'Digital Marketing',
+  'E-commerce Solutions',
+  'Custom Software',
+  'Consulting',
+  'Other',
+];
 
 /**
  * Validation Schema for Creating Contact Submission
@@ -13,55 +23,45 @@ const createContactSchema = Joi.object({
     'string.min': 'Full name must be at least 2 characters',
     'string.max': 'Full name cannot exceed 100 characters',
   }),
-  email: Joi.string().email().required().messages({
-    'string.empty': 'Email is required',
+  email: Joi.string().email({ tlds: { allow: false } }).required().messages({
     'string.email': 'Invalid email format',
+    'any.required': 'Email is required',
   }),
-  serviceOfInterest: Joi.string()
-    .valid(...SERVICE_OPTIONS)
-    .required()
-    .messages({
-      'any.only': 'Invalid service option selected',
-      'string.empty': 'Service of interest is required',
-    }),
+  serviceOfInterest: Joi.string().valid(...SERVICE_OPTIONS).required().messages({
+    'any.only': `Service of interest must be one of: ${SERVICE_OPTIONS.join(', ')}`,
+    'any.required': 'Service of interest is required',
+  }),
   projectDetails: Joi.string().trim().min(10).max(2000).required().messages({
-    'string.empty': 'Project details are required',
     'string.min': 'Project details must be at least 10 characters',
     'string.max': 'Project details cannot exceed 2000 characters',
+    'any.required': 'Project details are required',
   }),
 });
 
 /**
- * Validation Schema for Updating Contact Status
+ * Validation Schema for Updating Contact Status (PATCH /:id/status)
  */
 const updateContactStatusSchema = Joi.object({
   status: Joi.string().valid('new', 'in-progress', 'resolved').required().messages({
-    'any.only': 'Invalid status value',
-    'string.empty': 'Status is required',
+    'any.only': 'Status must be one of: new, in-progress, resolved',
+    'any.required': 'Status is required',
   }),
-  adminNotes: Joi.string().trim().max(1000).optional().allow('').messages({
-    'string.max': 'Admin notes cannot exceed 1000 characters',
-  }),
+  adminNotes: Joi.string().trim().max(2000).optional().allow(''),
 });
 
 /**
- * Validation Schema for Query Parameters
+ * PATCH /:id — general partial update.
+ * All fields optional, but at least one must be present.
  */
-const queryContactSchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(100).default(20),
-  sortBy: Joi.string()
-    .valid('fullName', 'email', 'status', 'createdAt', 'updatedAt')
-    .default('createdAt'),
-  sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+const patchContactSchema = Joi.object({
+  fullName: Joi.string().trim().min(2).max(100).optional(),
+  email: Joi.string().email({ tlds: { allow: false } }).optional(),
+  serviceOfInterest: Joi.string().valid(...SERVICE_OPTIONS).optional(),
+  projectDetails: Joi.string().trim().min(10).max(2000).optional(),
   status: Joi.string().valid('new', 'in-progress', 'resolved').optional(),
-  startDate: Joi.date().iso().optional().messages({
-    'date.format': 'Invalid start date format. Use ISO 8601 format (YYYY-MM-DD)',
-  }),
-  endDate: Joi.date().iso().optional().messages({
-    'date.format': 'Invalid end date format. Use ISO 8601 format (YYYY-MM-DD)',
-  }),
-  search: Joi.string().trim().max(100).optional(),
+  adminNotes: Joi.string().trim().max(2000).optional().allow(''),
+}).min(1).messages({
+  'object.min': 'At least one field must be provided for patch',
 });
 
 /**
@@ -76,14 +76,27 @@ const idParamSchema = Joi.object({
 });
 
 /**
- * Middleware: Validate Create Contact Request
+ * Validation Schema for Query Parameters
  */
-export const validateCreateContact = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { error, value } = createContactSchema.validate(req.body, {
+const queryContactSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(20),
+  sortBy: Joi.string().valid('createdAt', 'updatedAt', 'status', 'fullName').default('createdAt'),
+  sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+  status: Joi.string().valid('new', 'in-progress', 'resolved').optional(),
+  startDate: Joi.string().isoDate().optional(),
+  endDate: Joi.string().isoDate().optional(),
+  search: Joi.string().trim().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Generic middleware factory
+// ---------------------------------------------------------------------------
+const validate = (
+  schema: Joi.ObjectSchema,
+  target: 'body' | 'query' | 'params'
+) => (req: Request, res: Response, next: NextFunction) => {
+  const { error, value } = schema.validate(req[target], {
     abortEarly: false,
     stripUnknown: true,
   });
@@ -96,80 +109,25 @@ export const validateCreateContact = (
     return errorResponse(res, 400, 'Validation error', errors);
   }
 
-  req.body = value;
+  (req as any)[target] = value;
   next();
 };
 
-/**
- * Middleware: Validate Update Contact Status Request
- */
-export const validateUpdateContactStatus = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { error, value } = updateContactStatusSchema.validate(req.body, {
-    abortEarly: false,
-    stripUnknown: true,
-  });
+// ---------------------------------------------------------------------------
+// Exported middleware
+// ---------------------------------------------------------------------------
 
-  if (error) {
-    const errors: Record<string, string> = {};
-    error.details.forEach((detail) => {
-      errors[detail.path.join('.')] = detail.message;
-    });
-    return errorResponse(res, 400, 'Validation error', errors);
-  }
+/** POST /contact */
+export const validateCreateContact = validate(createContactSchema, 'body');
 
-  req.body = value;
-  next();
-};
+/** PATCH /contact/:id/status */
+export const validateUpdateContactStatus = validate(updateContactStatusSchema, 'body');
 
-/**
- * Middleware: Validate Query Parameters
- */
-export const validateContactQuery = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { error, value } = queryContactSchema.validate(req.query, {
-    abortEarly: false,
-    stripUnknown: true,
-  });
+/** PATCH /contact/:id  — general partial update */
+export const validatePatchContact = validate(patchContactSchema, 'body');
 
-  if (error) {
-    const errors: Record<string, string> = {};
-    error.details.forEach((detail) => {
-      errors[detail.path.join('.')] = detail.message;
-    });
-    return errorResponse(res, 400, 'Validation error', errors);
-  }
+/** Any route that takes :id */
+export const validateContactId = validate(idParamSchema, 'params');
 
-  req.query = value;
-  next();
-};
-
-/**
- * Middleware: Validate ID Parameter
- */
-export const validateContactId = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { error, value } = idParamSchema.validate(req.params, {
-    abortEarly: false,
-  });
-
-  if (error) {
-    const errors: Record<string, string> = {};
-    error.details.forEach((detail) => {
-      errors[detail.path.join('.')] = detail.message;
-    });
-    return errorResponse(res, 400, 'Validation error', errors);
-  }
-
-  req.params = value;
-  next();
-};
+/** GET /contact (query string) */
+export const validateContactQuery = validate(queryContactSchema, 'query');

@@ -29,12 +29,24 @@ export interface CreateContactRequest {
 }
 
 /**
- * Update Contact Status Request
+ * Update Contact Status Request (PATCH /:id/status — narrow, status-only action)
  */
 export interface UpdateContactStatusRequest {
   status: 'new' | 'in-progress' | 'resolved';
   adminNotes?: string;
   resolvedBy?: string;
+}
+
+/**
+ * Patch Contact Request (PATCH /:id — general partial update, any fields)
+ */
+export interface PatchContactRequest {
+  fullName?: string;
+  email?: string;
+  serviceOfInterest?: string;
+  projectDetails?: string;
+  status?: 'new' | 'in-progress' | 'resolved';
+  adminNotes?: string;
 }
 
 /**

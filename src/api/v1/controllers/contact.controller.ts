@@ -4,7 +4,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { contactService } from '@/domain/contact/services/contact.service';
 import { successResponse } from '@/shared/utils/response.util';
-import { CreateContactRequest, UpdateContactStatusRequest, ContactQueryFilters } from '@/domain/contact/types';
+import { CreateContactRequest, UpdateContactStatusRequest, PatchContactRequest, ContactQueryFilters } from '@/domain/contact/types';
 
 /**
  * Contact Controller
@@ -19,9 +19,9 @@ export const contactController = {
   createContact: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data: CreateContactRequest = req.body;
-      
+
       const contact = await contactService.createContact(data);
-      
+
       return successResponse(
         res,
         201,
@@ -52,7 +52,7 @@ export const contactController = {
       };
 
       const result = await contactService.getAllContacts(filters);
-      
+
       return res.status(200).json({
         statusCode: 200,
         success: true,
@@ -73,9 +73,9 @@ export const contactController = {
   getContactById: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      
+
       const contact = await contactService.getContactById(id);
-      
+
       return successResponse(
         res,
         200,
@@ -88,7 +88,7 @@ export const contactController = {
   },
 
   /**
-   * Update contact submission status
+   * Update contact submission status (narrow status-only action)
    * PATCH /api/v1/contact/:id/status
    * @access Admin
    */
@@ -96,14 +96,38 @@ export const contactController = {
     try {
       const { id } = req.params;
       const data: UpdateContactStatusRequest = req.body;
-      const adminId = req.user?.id; // Get admin ID from authenticated user
-      
+      const adminId = req.user?.id;
+
       const contact = await contactService.updateContactStatus(id, data, adminId);
-      
+
       return successResponse(
         res,
         200,
         'Contact submission status updated successfully',
+        contact
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Patch contact submission (general partial update — only sent fields change)
+   * PATCH /api/v1/contact/:id
+   * @access Admin
+   */
+  patchContact: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const data: PatchContactRequest = req.body;
+      const adminId = req.user?.id;
+
+      const contact = await contactService.patchContact(id, data, adminId);
+
+      return successResponse(
+        res,
+        200,
+        'Contact submission patched successfully',
         contact
       );
     } catch (error) {
@@ -119,9 +143,9 @@ export const contactController = {
   deleteContact: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      
+
       await contactService.deleteContact(id);
-      
+
       return successResponse(
         res,
         200,
@@ -140,7 +164,7 @@ export const contactController = {
   getContactStats: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await contactService.getContactStats();
-      
+
       return successResponse(
         res,
         200,
@@ -160,9 +184,9 @@ export const contactController = {
   getContactsByEmail: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { email } = req.params;
-      
+
       const contacts = await contactService.getContactsByEmail(email);
-      
+
       return successResponse(
         res,
         200,

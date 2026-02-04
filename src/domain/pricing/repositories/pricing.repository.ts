@@ -1,6 +1,6 @@
 // src/domain/pricing/repositories/pricing.repository.ts
 import { PricingModel, IPricing } from '../models/pricing.model';
-import { CreatePricingRequest, UpdatePricingRequest, PricingQueryFilters } from '../types';
+import { CreatePricingRequest, UpdatePricingRequest, PatchPricingRequest, PricingQueryFilters } from '../types';
 
 /**
  * Pricing Repository
@@ -30,21 +30,17 @@ export const pricingRepository = {
       isActive,
     } = filters;
 
-    // Build query
     const query: any = { deletedAt: null };
-    
+
     if (isActive !== undefined) {
       query.isActive = isActive;
     }
 
-    // Calculate skip
     const skip = (page - 1) * limit;
 
-    // Build sort object
     const sort: any = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    // Execute query with pagination
     const [data, total] = await Promise.all([
       PricingModel.find(query)
         .sort(sort)
@@ -68,14 +64,14 @@ export const pricingRepository = {
    * Find pricing plan by name
    */
   findByName: async (name: string): Promise<IPricing | null> => {
-    return await PricingModel.findOne({ 
+    return await PricingModel.findOne({
       name: { $regex: new RegExp(`^${name}$`, 'i') },
-      deletedAt: null 
+      deletedAt: null,
     }).exec();
   },
 
   /**
-   * Update pricing plan by ID
+   * Update pricing plan by ID (PUT — full replace, caller sends all fields)
    */
   update: async (
     id: string,
@@ -84,6 +80,28 @@ export const pricingRepository = {
     return await PricingModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { $set: data },
+      { new: true, runValidators: true }
+    ).exec();
+  },
+
+  /**
+   * Patch pricing plan by ID (PATCH — partial update, only provided keys touch DB)
+   */
+  patch: async (
+    id: string,
+    data: PatchPricingRequest
+  ): Promise<IPricing | null> => {
+    // Strip keys that are undefined so MongoDB only $set what was actually sent
+    const cleanPayload: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleanPayload[key] = value;
+      }
+    }
+
+    return await PricingModel.findOneAndUpdate(
+      { _id: id, deletedAt: null },
+      { $set: cleanPayload },
       { new: true, runValidators: true }
     ).exec();
   },

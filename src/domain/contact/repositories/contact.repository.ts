@@ -1,6 +1,6 @@
 // src/domain/contact/repositories/contact.repository.ts
 import { ContactModel, IContact } from '../models/contact.model';
-import { CreateContactRequest, UpdateContactStatusRequest, ContactQueryFilters } from '../types';
+import { CreateContactRequest, UpdateContactStatusRequest, PatchContactRequest, ContactQueryFilters } from '../types';
 
 /**
  * Contact Repository
@@ -36,15 +36,12 @@ export const contactRepository = {
       search,
     } = filters;
 
-    // Build query
     const query: any = { deletedAt: null };
-    
-    // Filter by status
+
     if (status) {
       query.status = status;
     }
 
-    // Filter by date range
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) {
@@ -55,7 +52,6 @@ export const contactRepository = {
       }
     }
 
-    // Search in fullName, email, serviceOfInterest, projectDetails
     if (search) {
       query.$or = [
         { fullName: { $regex: search, $options: 'i' } },
@@ -65,14 +61,11 @@ export const contactRepository = {
       ];
     }
 
-    // Calculate skip
     const skip = (page - 1) * limit;
 
-    // Build sort object
     const sort: any = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    // Execute query with pagination
     const [data, total] = await Promise.all([
       ContactModel.find(query)
         .sort(sort)
@@ -96,7 +89,7 @@ export const contactRepository = {
   },
 
   /**
-   * Update contact status
+   * Update contact status (PATCH /:id/status — narrow status-only action)
    */
   updateStatus: async (
     id: string,
@@ -121,6 +114,32 @@ export const contactRepository = {
     return await ContactModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { $set: updateData },
+      { new: true, runValidators: true }
+    ).exec();
+  },
+
+  /**
+   * Patch contact by ID (PATCH /:id — general partial update, only provided keys touch DB)
+   */
+  patch: async (
+    id: string,
+    data: PatchContactRequest
+  ): Promise<IContact | null> => {
+    const cleanPayload: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleanPayload[key] = value;
+      }
+    }
+
+    // If status is being set to resolved, auto-stamp resolvedAt
+    if (cleanPayload.status === 'resolved') {
+      cleanPayload.resolvedAt = new Date();
+    }
+
+    return await ContactModel.findOneAndUpdate(
+      { _id: id, deletedAt: null },
+      { $set: cleanPayload },
       { new: true, runValidators: true }
     ).exec();
   },
@@ -165,7 +184,7 @@ export const contactRepository = {
    */
   hasRecentSubmission: async (email: string, withinMinutes: number = 60): Promise<boolean> => {
     const timeAgo = new Date(Date.now() - withinMinutes * 60 * 1000);
-    
+
     const count = await ContactModel.countDocuments({
       email,
       createdAt: { $gte: timeAgo },
