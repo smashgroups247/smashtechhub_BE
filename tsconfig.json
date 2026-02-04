@@ -26,6 +26,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/tests/setup"],
   "exclude": ["node_modules", "dist"]
 }
