@@ -1,10 +1,15 @@
 // src/api/v1/controllers/pricing.controller.ts
 /// <reference path="../../../shared/types/express.d.ts" />
 
-import { Request, Response, NextFunction } from 'express';
-import { pricingService } from '@/domain/pricing/services/pricing.service';
-import { successResponse } from '@/shared/utils/response.util';
-import { CreatePricingRequest, UpdatePricingRequest, PatchPricingRequest, PricingQueryFilters } from '@/domain/pricing/types';
+import { Request, Response, NextFunction } from "express";
+import { pricingService } from "@/domain/pricing/services/pricing.service";
+import { successResponse } from "@/shared/utils/response.util";
+import {
+  CreatePricingRequest,
+  UpdatePricingRequest,
+  PatchPricingRequest,
+  PricingQueryFilters,
+} from "@/domain/pricing/types";
 
 /**
  * Pricing Controller
@@ -25,8 +30,8 @@ export const pricingController = {
       return successResponse(
         res,
         201,
-        'Pricing plan created successfully',
-        pricing
+        "Pricing plan created successfully",
+        pricing,
       );
     } catch (error) {
       next(error);
@@ -40,13 +45,14 @@ export const pricingController = {
    */
   getAllPricing: async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Query params are validated and typed by validatePricingQuery middleware
+      const query = req.query as any;
       const filters: PricingQueryFilters = {
-        page: parseInt(req.query.page as string) || 1,
-        limit: parseInt(req.query.limit as string) || 10,
-        sortBy: req.query.sortBy as string,
-        sortOrder: req.query.sortOrder as 'asc' | 'desc',
-        isActive: req.query.isActive === 'true' ? true :
-                  req.query.isActive === 'false' ? false : undefined,
+        page: query.page,
+        limit: query.limit,
+        sortBy: query.sortBy,
+        sortOrder: query.sortOrder,
+        isActive: query.isActive,
       };
 
       const result = await pricingService.getAllPricing(filters);
@@ -54,7 +60,7 @@ export const pricingController = {
       return res.status(200).json({
         statusCode: 200,
         success: true,
-        message: 'Pricing plans retrieved successfully',
+        message: "Pricing plans retrieved successfully",
         data: result.data,
         pagination: result.pagination,
       });
@@ -77,8 +83,8 @@ export const pricingController = {
       return successResponse(
         res,
         200,
-        'Pricing plan retrieved successfully',
-        pricing
+        "Pricing plan retrieved successfully",
+        pricing,
       );
     } catch (error) {
       next(error);
@@ -100,8 +106,8 @@ export const pricingController = {
       return successResponse(
         res,
         200,
-        'Pricing plan updated successfully',
-        pricing
+        "Pricing plan updated successfully",
+        pricing,
       );
     } catch (error) {
       next(error);
@@ -123,8 +129,8 @@ export const pricingController = {
       return successResponse(
         res,
         200,
-        'Pricing plan patched successfully',
-        pricing
+        "Pricing plan patched successfully",
+        pricing,
       );
     } catch (error) {
       next(error);
@@ -142,11 +148,7 @@ export const pricingController = {
 
       await pricingService.deletePricing(id);
 
-      return successResponse(
-        res,
-        200,
-        'Pricing plan deleted successfully'
-      );
+      return successResponse(res, 200, "Pricing plan deleted successfully");
     } catch (error) {
       next(error);
     }
@@ -164,8 +166,8 @@ export const pricingController = {
       return successResponse(
         res,
         200,
-        'Active pricing plans retrieved successfully',
-        pricing
+        "Active pricing plans retrieved successfully",
+        pricing,
       );
     } catch (error) {
       next(error);
@@ -177,7 +179,11 @@ export const pricingController = {
    * PATCH /api/v1/pricing/:id/toggle-status
    * @access Admin
    */
-  togglePricingStatus: async (req: Request, res: Response, next: NextFunction) => {
+  togglePricingStatus: async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const { id } = req.params;
 
@@ -186,8 +192,8 @@ export const pricingController = {
       return successResponse(
         res,
         200,
-        'Pricing plan status updated successfully',
-        pricing
+        "Pricing plan status updated successfully",
+        pricing,
       );
     } catch (error) {
       next(error);

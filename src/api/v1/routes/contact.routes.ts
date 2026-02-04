@@ -1,16 +1,16 @@
 // src/api/v1/routes/contact.routes.ts
-import { Router } from 'express';
-import { contactController } from '../controllers/contact.controller';
-import { authenticate } from '../middlewares/auth.middleware';
-import { isAdmin } from '../middlewares/admin.middleware';
-import { contactRateLimiter } from '../middlewares/rateLimit.middleware';
+import { Router } from "express";
+import { contactController } from "../controllers/contact.controller";
+import { authenticate } from "../middlewares/auth.middleware";
+import { isAdmin } from "../middlewares/admin.middleware";
+import { contactRateLimiter } from "../middlewares/rateLimit.middleware";
 import {
   validateCreateContact,
   validateUpdateContactStatus,
   validatePatchContact,
   validateContactId,
   validateContactQuery,
-} from '../validators/contact.validator';
+} from "../validators/contact.validator";
 
 export const contactRouter = Router();
 
@@ -62,10 +62,10 @@ export const contactRouter = Router();
  *         description: Rate limited – recent submission exists
  */
 contactRouter.post(
-  '/',
-  contactRateLimiter,
+  "/",
   validateCreateContact,
-  contactController.createContact
+  contactRateLimiter,
+  contactController.createContact,
 );
 
 // ─── GET /contact/stats ───────────────────────────────────────────────────────
@@ -96,10 +96,10 @@ contactRouter.post(
  *                   type: number
  */
 contactRouter.get(
-  '/stats',
+  "/stats",
   authenticate,
   isAdmin,
-  contactController.getContactStats
+  contactController.getContactStats,
 );
 
 // ─── GET /contact/email/:email ────────────────────────────────────────────────
@@ -123,10 +123,10 @@ contactRouter.get(
  *         description: Contact submissions retrieved successfully
  */
 contactRouter.get(
-  '/email/:email',
+  "/email/:email",
   authenticate,
   isAdmin,
-  contactController.getContactsByEmail
+  contactController.getContactsByEmail,
 );
 
 // ─── GET /contact ─────────────────────────────────────────────────────────────
@@ -190,11 +190,11 @@ contactRouter.get(
  *         description: Forbidden
  */
 contactRouter.get(
-  '/',
+  "/",
   authenticate,
   isAdmin,
   validateContactQuery,
-  contactController.getAllContacts
+  contactController.getAllContacts,
 );
 
 // ─── GET /contact/:id ─────────────────────────────────────────────────────────
@@ -219,11 +219,11 @@ contactRouter.get(
  *         description: Not found
  */
 contactRouter.get(
-  '/:id',
+  "/:id",
   authenticate,
   isAdmin,
   validateContactId,
-  contactController.getContactById
+  contactController.getContactById,
 );
 
 // ─── PATCH /contact/:id/status ────────────────────────────────────────────────
@@ -266,12 +266,12 @@ contactRouter.get(
  *         description: Not found
  */
 contactRouter.patch(
-  '/:id/status',
+  "/:id/status",
   authenticate,
   isAdmin,
   validateContactId,
   validateUpdateContactStatus,
-  contactController.updateContactStatus
+  contactController.updateContactStatus,
 );
 
 // ─── PATCH /contact/:id ───────────────────────────────────────────────────────
@@ -325,12 +325,12 @@ contactRouter.patch(
  *         description: Not found
  */
 contactRouter.patch(
-  '/:id',
+  "/:id",
   authenticate,
   isAdmin,
   validateContactId,
   validatePatchContact,
-  contactController.patchContact
+  contactController.patchContact,
 );
 
 // ─── DELETE /contact/:id ──────────────────────────────────────────────────────
@@ -359,9 +359,9 @@ contactRouter.patch(
  *         description: Not found
  */
 contactRouter.delete(
-  '/:id',
+  "/:id",
   authenticate,
   isAdmin,
   validateContactId,
-  contactController.deleteContact
+  contactController.deleteContact,
 );

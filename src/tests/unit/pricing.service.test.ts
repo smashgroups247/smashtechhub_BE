@@ -34,6 +34,10 @@ const mockDoc = (overrides: Record<string, any> = {}) => ({
 
 // ── createPricing ─────────────────────────────────────────────────────────────
 describe("pricingService.createPricing", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("creates a plan when name is unique and payload is valid", async () => {
     (pricingRepository.existsByName as jest.Mock).mockResolvedValue(false);
     (pricingRepository.create as jest.Mock).mockResolvedValue(mockDoc());
@@ -99,7 +103,9 @@ describe("pricingService.createPricing", () => {
 // ── updatePricing (PUT) ───────────────────────────────────────────────────────
 describe("pricingService.updatePricing", () => {
   const ID = "507f1f77bcf86cd799439011";
-
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
   it("performs a full update when plan exists and name is unique", async () => {
     (pricingRepository.findById as jest.Mock).mockResolvedValue(mockDoc());
     (pricingRepository.existsByName as jest.Mock).mockResolvedValue(false);
@@ -153,6 +159,10 @@ describe("pricingService.updatePricing", () => {
 // ── patchPricing (PATCH) ──────────────────────────────────────────────────────
 describe("pricingService.patchPricing", () => {
   const ID = "507f1f77bcf86cd799439011";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it("patches only the price when only price is sent", async () => {
     (pricingRepository.findById as jest.Mock).mockResolvedValue(mockDoc());

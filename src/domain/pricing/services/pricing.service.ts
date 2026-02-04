@@ -99,6 +99,7 @@ export const pricingService = {
       throw new AppError('Pricing plan not found', 404);
     }
 
+    // Only check for name duplicates if the name is actually changing
     if (data.name && data.name !== existingPricing.name) {
       const nameExists = await pricingRepository.existsByName(data.name, id);
       if (nameExists) {

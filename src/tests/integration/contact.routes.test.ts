@@ -101,7 +101,11 @@ describe("POST /api/v1/contact", () => {
   it("returns 400 when serviceOfInterest is not in allowed list", async () => {
     const res = await request(app)
       .post("/api/v1/contact")
-      .send({ ...VALID_CONTACT_CREATE, serviceOfInterest: "Hacking" });
+      .send({
+        ...VALID_CONTACT_CREATE,
+        email: "test-invalid-service@example.com",
+        serviceOfInterest: "Hacking",
+      });
 
     expect(res.status).toBe(400);
   });

@@ -2,12 +2,9 @@
 /**
  * End-to-end journey tests for the Pricing module.
  *
- * Each describe block walks through a realistic user scenario from start
- * to finish, hitting the real DB through the real route stack.
- *
- * Ordering within a describe MATTERS — each test builds on the state
- * left by the previous one.  We use `let` variables at the describe scope
- * to carry IDs / state across tests.
+ * IMPORTANT: E2E tests are CONSOLIDATED into single test blocks to avoid
+ * data loss from beforeEach cleanup. Each journey is a single test that
+ * performs multiple sequential steps.
  */
 import express from "express";
 import request from "supertest";
@@ -55,149 +52,131 @@ app.use(
 
 const auth = () => ({ Authorization: `Bearer ${generateAdminToken()}` });
 
-// ── Journey 1: Full admin lifecycle ──────────────────────────────────────────
+// ── Journey 1: Full admin lifecycle (CONSOLIDATED) ──────────────────────────
 describe("E2E Pricing – Full admin lifecycle", () => {
-  let planId: string;
-
-  test("1. Admin creates a new plan", async () => {
-    const res = await request(app)
+  test("Complete lifecycle: create → list → fetch → patch → put → toggle → delete", async () => {
+    // Step 1: Admin creates a new plan
+    const createRes = await request(app)
       .post("/api/v1/pricing")
       .set(auth())
       .send(VALID_PRICING_CREATE);
 
-    expect(res.status).toBe(201);
-    planId = res.body.data._id;
+    expect(createRes.status).toBe(201);
+    const planId = createRes.body.data._id;
     expect(planId).toBeDefined();
-  });
 
-  test("2. Plan appears in the paginated list", async () => {
-    const res = await request(app).get("/api/v1/pricing");
+    // Step 2: Plan appears in the paginated list
+    const listRes = await request(app).get("/api/v1/pricing");
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.data.some((p: any) => p._id === planId)).toBe(true);
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.some((p: any) => p._id === planId)).toBe(true);
-  });
+    // Step 3: Plan is fetchable by ID
+    const fetchRes = await request(app).get(`/api/v1/pricing/${planId}`);
+    expect(fetchRes.status).toBe(200);
+    expect(fetchRes.body.data.name).toBe("Starter Plan");
+    expect(fetchRes.body.data.price).toBe(15000);
 
-  test("3. Plan is fetchable by ID", async () => {
-    const res = await request(app).get(`/api/v1/pricing/${planId}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.name).toBe("Starter Plan");
-    expect(res.body.data.price).toBe(15000);
-  });
-
-  test("4. PATCH updates only price – name stays the same", async () => {
-    const res = await request(app)
+    // Step 4: PATCH updates only price – name stays the same
+    const patchRes = await request(app)
       .patch(`/api/v1/pricing/${planId}`)
       .set(auth())
       .send({ price: 22000 });
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.price).toBe(22000);
-    expect(res.body.data.name).toBe("Starter Plan"); // unchanged
-  });
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.data.price).toBe(22000);
+    expect(patchRes.body.data.name).toBe("Starter Plan"); // unchanged
 
-  test("5. PUT fully replaces the plan – all fields change", async () => {
-    const res = await request(app)
+    // Step 5: PUT fully replaces the plan – all fields change
+    const putRes = await request(app)
       .put(`/api/v1/pricing/${planId}`)
       .set(auth())
       .send(VALID_PRICING_PUT);
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.name).toBe("Starter Plan Updated");
-    expect(res.body.data.currency).toBe("USD");
-    expect(res.body.data.billingCycle).toBe("yearly");
-  });
+    expect(putRes.status).toBe(200);
+    expect(putRes.body.data.name).toBe("Starter Plan Updated");
+    expect(putRes.body.data.currency).toBe("USD");
+    expect(putRes.body.data.billingCycle).toBe("yearly");
 
-  test("6. Toggle-status flips isActive to false", async () => {
-    const res = await request(app)
+    // Step 6: Toggle-status flips isActive to false
+    const toggle1Res = await request(app)
       .patch(`/api/v1/pricing/${planId}/toggle-status`)
       .set(auth());
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.isActive).toBe(false);
-  });
+    expect(toggle1Res.status).toBe(200);
+    expect(toggle1Res.body.data.isActive).toBe(false);
 
-  test("7. Plan no longer appears in /active", async () => {
-    const res = await request(app).get("/api/v1/pricing/active");
+    // Step 7: Plan no longer appears in /active
+    const activeRes = await request(app).get("/api/v1/pricing/active");
+    expect(activeRes.status).toBe(200);
+    expect(activeRes.body.data.some((p: any) => p._id === planId)).toBe(false);
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.some((p: any) => p._id === planId)).toBe(false);
-  });
-
-  test("8. Toggle-status flips isActive back to true", async () => {
-    const res = await request(app)
+    // Step 8: Toggle-status flips isActive back to true
+    const toggle2Res = await request(app)
       .patch(`/api/v1/pricing/${planId}/toggle-status`)
       .set(auth());
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.isActive).toBe(true);
-  });
+    expect(toggle2Res.status).toBe(200);
+    expect(toggle2Res.body.data.isActive).toBe(true);
 
-  test("9. DELETE soft-deletes the plan", async () => {
-    const res = await request(app)
+    // Step 9: DELETE soft-deletes the plan
+    const deleteRes = await request(app)
       .delete(`/api/v1/pricing/${planId}`)
       .set(auth());
 
-    expect(res.status).toBe(200);
-  });
+    expect(deleteRes.status).toBe(200);
 
-  test("10. GET by ID returns 404 after soft-delete", async () => {
-    const res = await request(app).get(`/api/v1/pricing/${planId}`);
-    expect(res.status).toBe(404);
-  });
+    // Step 10: GET by ID returns 404 after soft-delete
+    const deleted404Res = await request(app).get(`/api/v1/pricing/${planId}`);
+    expect(deleted404Res.status).toBe(404);
 
-  test("11. Raw document still exists with deletedAt set", async () => {
+    // Step 11: Raw document still exists with deletedAt set
     const raw = await PricingModel.findById(planId);
     expect(raw).not.toBeNull();
     expect(raw!.deletedAt).not.toBeNull();
   });
 });
 
-// ── Journey 2: Duplicate-name guard across create & patch ───────────────────
+// ── Journey 2: Duplicate-name guard (CONSOLIDATED) ───────────────────────────
 describe("E2E Pricing – Duplicate name prevention", () => {
-  let firstId: string;
-
-  test('1. Create "Unique Plan"', async () => {
-    const res = await request(app)
+  test("Duplicate name scenarios: create collision, patch collision, self-patch allowed", async () => {
+    // Step 1: Create "Unique Plan"
+    const res1 = await request(app)
       .post("/api/v1/pricing")
       .set(auth())
       .send({ ...VALID_PRICING_CREATE, name: "Unique Plan" });
 
-    expect(res.status).toBe(201);
-    firstId = res.body.data._id;
-  });
+    expect(res1.status).toBe(201);
+    const firstId = res1.body.data._id;
 
-  test("2. Create another plan with same name → 400", async () => {
-    const res = await request(app)
+    // Step 2: Create another plan with same name → 400
+    const res2 = await request(app)
       .post("/api/v1/pricing")
       .set(auth())
       .send({ ...VALID_PRICING_CREATE, name: "Unique Plan" });
 
-    expect(res.status).toBe(400);
-  });
+    expect(res2.status).toBe(400);
 
-  test('3. Create "Other Plan" then PATCH its name to "Unique Plan" → 400', async () => {
-    const createRes = await request(app)
+    // Step 3: Create "Other Plan" then PATCH its name to "Unique Plan" → 400
+    const createOther = await request(app)
       .post("/api/v1/pricing")
       .set(auth())
       .send({ ...VALID_PRICING_CREATE, name: "Other Plan" });
 
-    expect(createRes.status).toBe(201);
+    expect(createOther.status).toBe(201);
 
-    const patchRes = await request(app)
-      .patch(`/api/v1/pricing/${createRes.body.data._id}`)
+    const patchCollision = await request(app)
+      .patch(`/api/v1/pricing/${createOther.body.data._id}`)
       .set(auth())
       .send({ name: "Unique Plan" });
 
-    expect(patchRes.status).toBe(400);
-  });
+    expect(patchCollision.status).toBe(400);
 
-  test('4. PATCH "Unique Plan" to its own name (no-op) → 200', async () => {
-    const res = await request(app)
+    // Step 4: PATCH "Unique Plan" to its own name (no-op) → 200
+    const selfPatch = await request(app)
       .patch(`/api/v1/pricing/${firstId}`)
       .set(auth())
       .send({ name: "Unique Plan", price: 1 });
 
-    expect(res.status).toBe(200);
+    expect(selfPatch.status).toBe(200);
   });
 });

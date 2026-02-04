@@ -32,6 +32,7 @@ export const pricingRepository = {
 
     const query: any = { deletedAt: null };
 
+    // FIX: Properly filter by isActive when provided
     if (isActive !== undefined) {
       query.isActive = isActive;
     }
