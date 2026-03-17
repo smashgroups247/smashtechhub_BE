@@ -7,9 +7,23 @@ import { errorHandler } from './api/v1/middlewares/errorHandler.middleware';
 import { v1Router } from './api/v1/routes';
 import { logger } from './monitoring/logger/logger';
 import { setupSwagger } from './api/v1/docs/swagger';
+import { mongoDBConnection } from './core/database/mongodb';
 import './tsconfig-paths-bootstrap';
 
 const app = express();
+
+// --------------------
+// Database Connection
+// --------------------
+const initializeDatabase = async () => {
+  try {
+    await mongoDBConnection.connect();
+    logger.info('Database initialization completed');
+  } catch (error) {
+    logger.error('Database initialization failed:', { error: error instanceof Error ? error.message : String(error) });
+    process.exit(1); // Exit if database connection fails
+  }
+};
 
 // --------------------
 // Security Middleware
@@ -39,13 +53,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // --------------------
 app.get('/', (req: Request, res: Response) => {
   res.json({
-    message: 'Welcome to ExpressJS API version 1',
+    message: 'Welcome to SmashTechHub API',
     version: '1.0.0',
     documentation: {
       swagger: `http://localhost:${config.port}/api/docs`,
-      scalar: `http://localhost:${config.port}/api/docs/scalar`,
       openapi: `http://localhost:${config.port}/api/docs/json`,
     },
+    status: 'running',
   });
 });
 
@@ -68,6 +82,7 @@ app.get('/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: config.NODE_ENV,
+    database: mongoDBConnection.getConnectionStatus() ? 'connected' : 'disconnected',
   });
 });
 
@@ -92,12 +107,26 @@ app.use(errorHandler);
 // --------------------
 const PORT = config.port || 3000;
 
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
-  logger.info(`Environment: ${config.NODE_ENV}`);
-  logger.info(`Swagger UI: http://localhost:${PORT}/api/docs`);
-  logger.info(`Scalar Docs: http://localhost:${PORT}/api/docs/scalar`);
-  logger.info(`OpenAPI JSON: http://localhost:${PORT}/api/docs/json`);
-});
+const startServer = async () => {
+  try {
+    // Initialize database first
+    await initializeDatabase();
+
+    // Then start the server
+    app.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`);
+      logger.info(`Environment: ${config.NODE_ENV}`);
+      logger.info(`Swagger UI: http://localhost:${PORT}/api/docs`);
+      logger.info(`OpenAPI JSON: http://localhost:${PORT}/api/docs/json`);
+      logger.info(`Health Check: http://localhost:${PORT}/health`);
+    });
+  } catch (error) {
+    logger.error('Failed to start server:', { error: error instanceof Error ? error.message : String(error) });
+    process.exit(1);
+  }
+};
+
+// Start the server
+startServer();
 
 export default app;

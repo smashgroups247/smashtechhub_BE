@@ -1,7 +1,9 @@
+// src/api/v1/controllers/auth.controller.ts
+/// <reference path="../../../shared/types/express.d.ts" />
+
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '@/domain/auth/services/auth.service';
 import { AppError } from '@/shared/errors/AppError';
-import { successResponse } from '@shared/utils/response.util';
 
 export const authController = {
   /**
@@ -13,7 +15,10 @@ export const authController = {
       
       const result = await authService.login({ email, password });
       
-      return successResponse(res, 200, 'Login successful', result);
+      res.json({
+        success: true,
+        data: result,
+      });
     } catch (error) {
       next(error);
     }
@@ -28,7 +33,10 @@ export const authController = {
       
       const result = await authService.register(userData);
       
-      return successResponse(res, 201, 'Registration successful', result);
+      res.status(201).json({
+        success: true,
+        data: result,
+      });
     } catch (error) {
       next(error);
     }
@@ -47,7 +55,10 @@ export const authController = {
       
       await authService.logout(userId);
       
-      return successResponse(res, 200, 'Logged out successfully');
+      res.json({
+        success: true,
+        message: 'Logged out successfully',
+      });
     } catch (error) {
       next(error);
     }
@@ -66,7 +77,10 @@ export const authController = {
       
       const user = await authService.getCurrentUser(userId);
       
-      return successResponse(res, 200, 'User retrieved successfully', user);
+      res.json({
+        success: true,
+        data: user,
+      });
     } catch (error) {
       next(error);
     }

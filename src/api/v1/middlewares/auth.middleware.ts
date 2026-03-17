@@ -1,3 +1,6 @@
+// src/api/v1/middlewares/auth.middleware.ts
+/// <reference path="../../../shared/types/express.d.ts" />
+
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '@/core/config/env';
@@ -6,16 +9,9 @@ import { AppError } from '@/shared/errors/AppError';
 export interface JwtPayload {
   id: string;
   email: string;
+  role?: string;
   iat?: number;
   exp?: number;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
 }
 
 export const authenticate = async (
