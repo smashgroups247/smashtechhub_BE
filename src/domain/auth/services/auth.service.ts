@@ -48,6 +48,7 @@ export const authService = {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        role: user.role,
       },
       token,
       refreshToken,
@@ -91,6 +92,7 @@ export const authService = {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        role: user.role,
       },
       token,
     };
@@ -120,6 +122,7 @@ export const authService = {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      role: user.role,
     };
   },
 };

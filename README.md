@@ -211,3 +211,5 @@ Client Request → Route → Controller → Service → Repository → Database
 - Controllers only orchestrate service calls.
 
 - Services contain business logic.
+
+

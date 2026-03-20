@@ -37,7 +37,7 @@ export const userRepository = {
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
-        role: 'user', // Default role
+        role: data.role || 'user', // Default role
       });
       
       return await user.save();
