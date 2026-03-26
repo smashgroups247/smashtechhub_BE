@@ -1,164 +1,178 @@
 // src/domain/pricing/repositories/pricing.repository.ts
-import { PricingModel, IPricing } from '../models/pricing.model';
-import { CreatePricingRequest, UpdatePricingRequest, PatchPricingRequest, PricingQueryFilters } from '../types';
+import { prisma } from '../../../core/database/prisma';
+import type { Pricing } from '@prisma/client';
+import { Category } from '@prisma/client';
+import {
+  CreatePricingRequest,
+  UpdatePricingRequest,
+  PatchPricingRequest,
+  PricingQueryFilters,
+} from '../types';
+import { Prisma } from '@prisma/client';
 
-/**
- * Pricing Repository
- * Handles all database operations for Pricing collection
- */
 export const pricingRepository = {
-  /**
-   * Create a new pricing plan
-   */
-  create: async (data: CreatePricingRequest): Promise<IPricing> => {
-    const pricing = new PricingModel(data);
-    return await pricing.save();
+  create: async (data: CreatePricingRequest): Promise<Pricing> => {
+    return await prisma.pricing.create({
+      data: {
+        name: data.name,
+        price: data.price,
+        currency: data.currency ?? 'NGN',
+        billingCycle: data.billingCycle ?? 'monthly',
+        features: data.features,
+        description: data.description ?? '',
+        isActive: data.isActive !== undefined ? data.isActive : true,
+        displayOrder: data.displayOrder ?? 0,
+        category: data.category,
+      },
+    });
   },
 
-  /**
-   * Find all pricing plans with pagination and filters
-   */
-  findAll: async (filters: PricingQueryFilters): Promise<{
-    data: IPricing[];
-    total: number;
-  }> => {
+  findAll: async (filters: PricingQueryFilters): Promise<{ data: Pricing[]; total: number }> => {
     const {
       page = 1,
       limit = 10,
       sortBy = 'displayOrder',
       sortOrder = 'asc',
       isActive,
+      category,
     } = filters;
 
-    const query: any = { deletedAt: null };
+    const where: Prisma.PricingWhereInput = { deletedAt: null };
 
-    // FIX: Properly filter by isActive when provided
     if (isActive !== undefined) {
-      query.isActive = isActive;
+      where.isActive = isActive;
+    }
+
+    if (category) {
+      where.category = category;
     }
 
     const skip = (page - 1) * limit;
 
-    const sort: any = {};
-    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    const orderBy: Prisma.PricingOrderByWithRelationInput = {
+      [sortBy]: sortOrder === 'asc' ? 'asc' : 'desc',
+    };
 
     const [data, total] = await Promise.all([
-      PricingModel.find(query)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      PricingModel.countDocuments(query),
+      prisma.pricing.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.pricing.count({ where }),
     ]);
 
     return { data, total };
   },
 
-  /**
-   * Find pricing plan by ID
-   */
-  findById: async (id: string): Promise<IPricing | null> => {
-    return await PricingModel.findOne({ _id: id, deletedAt: null }).exec();
+  findById: async (id: string): Promise<Pricing | null> => {
+    return await prisma.pricing.findFirst({
+      where: { id, deletedAt: null },
+    });
   },
 
-  /**
-   * Find pricing plan by name
-   */
-  findByName: async (name: string): Promise<IPricing | null> => {
-    return await PricingModel.findOne({
-      name: { $regex: new RegExp(`^${name}$`, 'i') },
-      deletedAt: null,
-    }).exec();
+  findByName: async (name: string): Promise<Pricing | null> => {
+    return await prisma.pricing.findFirst({
+      where: {
+        name: { equals: name, mode: 'insensitive' },
+        deletedAt: null,
+      },
+    });
   },
 
-  /**
-   * Update pricing plan by ID (PUT — full replace, caller sends all fields)
-   */
-  update: async (
-    id: string,
-    data: UpdatePricingRequest
-  ): Promise<IPricing | null> => {
-    return await PricingModel.findOneAndUpdate(
-      { _id: id, deletedAt: null },
-      { $set: data },
-      { new: true, runValidators: true }
-    ).exec();
+  update: async (id: string, data: UpdatePricingRequest): Promise<Pricing | null> => {
+    try {
+      return await prisma.pricing.update({
+        where: { id },
+        data,
+      });
+    } catch {
+      return null;
+    }
   },
 
-  /**
-   * Patch pricing plan by ID (PATCH — partial update, only provided keys touch DB)
-   */
-  patch: async (
-    id: string,
-    data: PatchPricingRequest
-  ): Promise<IPricing | null> => {
-    // Strip keys that are undefined so MongoDB only $set what was actually sent
-    const cleanPayload: Record<string, any> = {};
+  patch: async (id: string, data: PatchPricingRequest): Promise<Pricing | null> => {
+    const cleanPayload: Prisma.PricingUpdateInput = {};
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined) {
-        cleanPayload[key] = value;
+        (cleanPayload as any)[key] = value;
       }
     }
 
-    return await PricingModel.findOneAndUpdate(
-      { _id: id, deletedAt: null },
-      { $set: cleanPayload },
-      { new: true, runValidators: true }
-    ).exec();
+    try {
+      return await prisma.pricing.update({
+        where: { id },
+        data: cleanPayload,
+      });
+    } catch {
+      return null;
+    }
   },
 
-  /**
-   * Soft delete pricing plan by ID
-   */
-  softDelete: async (id: string): Promise<IPricing | null> => {
-    return await PricingModel.findOneAndUpdate(
-      { _id: id, deletedAt: null },
-      { $set: { deletedAt: new Date() } },
-      { new: true }
-    ).exec();
+  softDelete: async (id: string): Promise<Pricing | null> => {
+    try {
+      return await prisma.pricing.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+    } catch {
+      return null;
+    }
   },
 
-  /**
-   * Hard delete pricing plan by ID (use with caution)
-   */
-  hardDelete: async (id: string): Promise<IPricing | null> => {
-    return await PricingModel.findByIdAndDelete(id).exec();
+  hardDelete: async (id: string): Promise<Pricing | null> => {
+    try {
+      return await prisma.pricing.delete({
+        where: { id },
+      });
+    } catch {
+      return null;
+    }
   },
 
-  /**
-   * Check if pricing plan exists by name (excluding current ID)
-   */
   existsByName: async (name: string, excludeId?: string): Promise<boolean> => {
-    const query: any = {
-      name: { $regex: new RegExp(`^${name}$`, 'i') },
+    const where: Prisma.PricingWhereInput = {
+      name: { equals: name, mode: 'insensitive' },
       deletedAt: null,
     };
 
     if (excludeId) {
-      query._id = { $ne: excludeId };
+      where.id = { not: excludeId };
     }
 
-    const count = await PricingModel.countDocuments(query);
+    const count = await prisma.pricing.count({ where });
     return count > 0;
   },
 
-  /**
-   * Get active pricing plans only
-   */
-  findActive: async (): Promise<IPricing[]> => {
-    return await PricingModel.find({ isActive: true, deletedAt: null })
-      .sort({ displayOrder: 1 })
-      .exec();
+  findActive: async (category?: Category): Promise<Pricing[]> => {
+    const where: Prisma.PricingWhereInput = { isActive: true, deletedAt: null };
+
+    if (category) {
+      where.category = category;
+    }
+
+    return await prisma.pricing.findMany({
+      where,
+      orderBy: { displayOrder: 'asc' },
+    });
   },
 
-  /**
-   * Update display order
-   */
-  updateDisplayOrder: async (id: string, displayOrder: number): Promise<IPricing | null> => {
-    return await PricingModel.findOneAndUpdate(
-      { _id: id, deletedAt: null },
-      { $set: { displayOrder } },
-      { new: true }
-    ).exec();
+  findByCategory: async (category: Category): Promise<Pricing[]> => {
+    return await prisma.pricing.findMany({
+      where: { category, deletedAt: null },
+      orderBy: { displayOrder: 'asc' },
+    });
+  },
+
+  updateDisplayOrder: async (id: string, displayOrder: number): Promise<Pricing | null> => {
+    try {
+      return await prisma.pricing.update({
+        where: { id },
+        data: { displayOrder },
+      });
+    } catch {
+      return null;
+    }
   },
 };

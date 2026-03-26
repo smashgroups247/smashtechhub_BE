@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  password   String
+  firstName  String
+  lastName   String
+  role       String    @default("user")
+  lastLogout DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+}
+
+model Contact {
+  id                String    @id @default(uuid())
+  fullName          String
+  email             String
+  serviceOfInterest String
+  projectDetails    String
+  status            String    @default("new")
+  adminNotes        String    @default("")
+  resolvedBy        String?
+  resolvedAt        DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+enum Category {
+  WEBSITE
+  WEB_APP
+  MOBILE_APP
+  BRANDING
+}
+
+model Pricing {
+  id           String    @id @default(uuid())
+  name         String
+  price        Float
+  currency     String    @default("NGN")
+  billingCycle String    @default("monthly")
+  features     String[]
+  description  String    @default("")
+  isActive     Boolean   @default(true)
+  displayOrder Int       @default(0)
+  category     Category
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+  @@index([displayOrder])
+  @@index([category])
+  @@index([deletedAt])
+}

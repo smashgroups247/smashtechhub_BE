@@ -10,14 +10,7 @@ export const config = {
   
   // Database
   database: {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    name: process.env.DB_NAME || 'mydb',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    // MongoDB
-    mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/smashtechhub',
-    mongoTestUri: process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/smashtechhub_test',
+    url: process.env.DATABASE_URL || 'postgresql://localhost:5432/mydb',
   },
 
   // JWT

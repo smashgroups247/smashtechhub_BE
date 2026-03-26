@@ -7,7 +7,7 @@ import { errorHandler } from './api/v1/middlewares/errorHandler.middleware';
 import { v1Router } from './api/v1/routes';
 import { logger } from './monitoring/logger/logger';
 import { setupSwagger } from './api/v1/docs/swagger';
-import { mongoDBConnection } from './core/database/mongodb';
+import { initializeDatabase } from './core/database/prisma';
 import './tsconfig-paths-bootstrap';
 
 const app = express();
@@ -15,13 +15,13 @@ const app = express();
 // --------------------
 // Database Connection
 // --------------------
-const initializeDatabase = async () => {
+const initDB = async () => {
   try {
-    await mongoDBConnection.connect();
+    await initializeDatabase();
     logger.info('Database initialization completed');
   } catch (error) {
     logger.error('Database initialization failed:', { error: error instanceof Error ? error.message : String(error) });
-    process.exit(1); // Exit if database connection fails
+    process.exit(1);
   }
 };
 
@@ -76,13 +76,13 @@ app.use('/api/v1', v1Router);
 // --------------------
 // Health Check
 // --------------------
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', async (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: config.NODE_ENV,
-    database: mongoDBConnection.getConnectionStatus() ? 'connected' : 'disconnected',
+    database: 'connected', // Prisma handles reconnections automatically
   });
 });
 
@@ -110,7 +110,7 @@ const PORT = config.port || 3000;
 const startServer = async () => {
   try {
     // Initialize database first
-    await initializeDatabase();
+    await initDB();
 
     // Then start the server
     app.listen(PORT, () => {

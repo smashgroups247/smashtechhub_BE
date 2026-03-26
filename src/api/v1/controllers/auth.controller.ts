@@ -31,6 +31,18 @@ export const authController = {
     try {
       const userData = req.body;
       
+      // Map `name` to `firstName` and `lastName` if the client sends `name` instead of `firstName`/`lastName`.
+      if (userData.name && !userData.firstName) {
+        const parts = userData.name.trim().split(' ');
+        userData.firstName = parts[0];
+        userData.lastName = parts.slice(1).join(' ') || 'User';
+      }
+
+      // Validate required fields
+      if (!userData.firstName || !userData.lastName || !userData.email || !userData.password) {
+         throw new AppError('email, password, firstName, and lastName are required', 400);
+      }
+      
       const result = await authService.register(userData);
       
       res.status(201).json({

@@ -65,12 +65,11 @@ const patchContactSchema = Joi.object({
 });
 
 /**
- * Validation Schema for MongoDB ObjectId
+ * Validation Schema for UUID (Prisma @default(uuid()))
  */
 const idParamSchema = Joi.object({
-  id: Joi.string().hex().length(24).required().messages({
-    'string.hex': 'Invalid contact submission ID format',
-    'string.length': 'Invalid contact submission ID format',
+  id: Joi.string().uuid({ version: 'uuidv4' }).required().messages({
+    'string.guid': 'Invalid contact submission ID format (must be a valid UUID)',
     'any.required': 'Contact submission ID is required',
   }),
 });

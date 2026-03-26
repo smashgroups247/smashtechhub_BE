@@ -9,6 +9,7 @@ import {
   validatePatchPricing,
   validatePricingQuery,
   validatePricingId,
+  validateCategoryParam,
 } from '../validators/pricing.validator';
 
 export const pricingRouter = Router();
@@ -39,6 +40,7 @@ export const pricingRouter = Router();
  *               - name
  *               - price
  *               - features
+ *               - category
  *             properties:
  *               name:
  *                 type: string
@@ -67,6 +69,10 @@ export const pricingRouter = Router();
  *               displayOrder:
  *                 type: number
  *                 default: 0
+ *               category:
+ *                 type: string
+ *                 enum: [WEBSITE, WEB_APP, MOBILE_APP, BRANDING]
+ *                 example: WEBSITE
  *     responses:
  *       201:
  *         description: Pricing plan created successfully
@@ -122,6 +128,11 @@ pricingRouter.post(
  *         name: isActive
  *         schema:
  *           type: boolean
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *           enum: [WEBSITE, WEB_APP, MOBILE_APP, BRANDING]
  *     responses:
  *       200:
  *         description: Pricing plans retrieved successfully
@@ -133,12 +144,20 @@ pricingRouter.get(
 );
 
 // ─── GET /pricing/active ──────────────────────────────────────────────────────
+// NOTE: Static paths (/active, /category/:category) MUST be registered before
+// the dynamic /:id route so Express doesn't treat "active" as an id.
 /**
  * @swagger
  * /api/v1/pricing/active:
  *   get:
  *     summary: Get only active pricing plans (no pagination – lightweight list)
  *     tags: [Pricing]
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *           enum: [WEBSITE, WEB_APP, MOBILE_APP, BRANDING]
  *     responses:
  *       200:
  *         description: Active pricing plans retrieved successfully
@@ -146,6 +165,32 @@ pricingRouter.get(
 pricingRouter.get(
   '/active',
   pricingController.getActivePricing
+);
+
+// ─── GET /pricing/category/:category ─────────────────────────────────────────
+/**
+ * @swagger
+ * /api/v1/pricing/category/{category}:
+ *   get:
+ *     summary: Get all plans in a specific category
+ *     tags: [Pricing]
+ *     parameters:
+ *       - in: path
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [WEBSITE, WEB_APP, MOBILE_APP, BRANDING]
+ *     responses:
+ *       200:
+ *         description: Pricing plans retrieved successfully
+ *       400:
+ *         description: Invalid category value
+ */
+pricingRouter.get(
+  '/category/:category',
+  validateCategoryParam,
+  pricingController.getPricingByCategory
 );
 
 // ─── GET /pricing/:id ─────────────────────────────────────────────────────────
@@ -161,7 +206,8 @@ pricingRouter.get(
  *         required: true
  *         schema:
  *           type: string
- *         description: MongoDB ObjectId of the pricing plan
+ *           format: uuid
+ *         description: UUID of the pricing plan
  *     responses:
  *       200:
  *         description: Pricing plan retrieved successfully
@@ -189,6 +235,7 @@ pricingRouter.get(
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
@@ -204,6 +251,7 @@ pricingRouter.get(
  *               - description
  *               - isActive
  *               - displayOrder
+ *               - category
  *             properties:
  *               name:
  *                 type: string
@@ -225,6 +273,9 @@ pricingRouter.get(
  *                 type: boolean
  *               displayOrder:
  *                 type: number
+ *               category:
+ *                 type: string
+ *                 enum: [WEBSITE, WEB_APP, MOBILE_APP, BRANDING]
  *     responses:
  *       200:
  *         description: Pricing plan updated successfully
@@ -246,6 +297,42 @@ pricingRouter.put(
   pricingController.updatePricing
 );
 
+// ─── PATCH /pricing/:id/toggle-status ────────────────────────────────────────
+// NOTE: Must be registered BEFORE the bare /:id PATCH so Express matches the
+// longer path first.
+/**
+ * @swagger
+ * /api/v1/pricing/{id}/toggle-status:
+ *   patch:
+ *     summary: Toggle pricing plan isActive flag (no body required)
+ *     tags: [Pricing]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Pricing plan status toggled successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden – admin access required
+ *       404:
+ *         description: Pricing plan not found
+ */
+pricingRouter.patch(
+  '/:id/toggle-status',
+  authenticate,
+  isAdmin,
+  validatePricingId,
+  pricingController.togglePricingStatus
+);
+
 // ─── PATCH /pricing/:id ───────────────────────────────────────────────────────
 /**
  * @swagger
@@ -261,6 +348,7 @@ pricingRouter.put(
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
@@ -289,6 +377,9 @@ pricingRouter.put(
  *                 type: boolean
  *               displayOrder:
  *                 type: number
+ *               category:
+ *                 type: string
+ *                 enum: [WEBSITE, WEB_APP, MOBILE_APP, BRANDING]
  *     responses:
  *       200:
  *         description: Pricing plan patched successfully
@@ -310,39 +401,6 @@ pricingRouter.patch(
   pricingController.patchPricing
 );
 
-// ─── PATCH /pricing/:id/toggle-status ────────────────────────────────────────
-/**
- * @swagger
- * /api/v1/pricing/{id}/toggle-status:
- *   patch:
- *     summary: Toggle pricing plan isActive flag (no body required)
- *     tags: [Pricing]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Pricing plan status toggled successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden – admin access required
- *       404:
- *         description: Pricing plan not found
- */
-pricingRouter.patch(
-  '/:id/toggle-status',
-  authenticate,
-  isAdmin,
-  validatePricingId,
-  pricingController.togglePricingStatus
-);
-
 // ─── DELETE /pricing/:id ──────────────────────────────────────────────────────
 /**
  * @swagger
@@ -358,6 +416,7 @@ pricingRouter.patch(
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: Pricing plan deleted successfully
@@ -376,7 +435,7 @@ pricingRouter.delete(
   pricingController.deletePricing
 );
 
-// ─── Swagger component schema (referenced by other docs) ─────────────────────
+// ─── Swagger component schema ─────────────────────────────────────────────────
 /**
  * @swagger
  * components:
@@ -384,9 +443,10 @@ pricingRouter.delete(
  *     Pricing:
  *       type: object
  *       properties:
- *         _id:
+ *         id:
  *           type: string
- *           example: 507f1f77bcf86cd799439011
+ *           format: uuid
+ *           example: 550e8400-e29b-41d4-a716-446655440000
  *         name:
  *           type: string
  *         price:
@@ -405,6 +465,9 @@ pricingRouter.delete(
  *           type: boolean
  *         displayOrder:
  *           type: number
+ *         category:
+ *           type: string
+ *           enum: [WEBSITE, WEB_APP, MOBILE_APP, BRANDING]
  *         createdAt:
  *           type: string
  *           format: date-time

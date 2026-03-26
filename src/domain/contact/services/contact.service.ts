@@ -38,7 +38,7 @@ export const contactService = {
     }
 
     const contact = await contactRepository.create(data);
-    return contact.toJSON() as ContactResponse;
+    return contact as ContactResponse;
   },
 
   /**
@@ -68,7 +68,7 @@ export const contactService = {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: data.map((item) => item.toJSON() as ContactResponse),
+      data: data.map((item) => item as ContactResponse),
       pagination: {
         page,
         limit,
@@ -88,7 +88,7 @@ export const contactService = {
       throw new AppError('Contact submission not found', 404);
     }
 
-    return contact.toJSON() as ContactResponse;
+    return contact as ContactResponse;
   },
 
   /**
@@ -115,7 +115,7 @@ export const contactService = {
       throw new AppError('Failed to update contact submission', 500);
     }
 
-    return updatedContact.toJSON() as ContactResponse;
+    return updatedContact as ContactResponse;
   },
 
   /**
@@ -168,7 +168,7 @@ export const contactService = {
       throw new AppError('Failed to patch contact submission', 500);
     }
 
-    return patchedContact.toJSON() as ContactResponse;
+    return patchedContact as ContactResponse;
   },
 
   /**
@@ -201,6 +201,6 @@ export const contactService = {
    */
   getContactsByEmail: async (email: string): Promise<ContactResponse[]> => {
     const contacts = await contactRepository.findByEmail(email, 10);
-    return contacts.map((contact) => contact.toJSON() as ContactResponse);
+    return contacts.map((contact) => contact as ContactResponse);
   },
 };

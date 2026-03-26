@@ -1,9 +1,10 @@
 // scripts/seed-pricing.ts
-import mongoose from 'mongoose';
-import { PricingModel } from '../src/domain/pricing/models/pricing.model';
-import { config } from '../src/core/config/env';
 
-const pricingPlans = [
+import { PrismaClient, Category } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+const basePlans = [
   {
     name: 'Starter Plan',
     price: 150000,
@@ -73,32 +74,48 @@ const pricingPlans = [
   },
 ];
 
+const categories: { value: Category; label: string }[] = [
+  { value: Category.WEBSITE,    label: 'Website'    },
+  { value: Category.WEB_APP,    label: 'Web App'    },
+  { value: Category.MOBILE_APP, label: 'Mobile App' },
+  { value: Category.BRANDING,   label: 'Branding'   },
+];
+
+const generatedPlans = categories.flatMap(({ value, label }) =>
+  basePlans.map((plan) => ({
+    ...plan,
+    name: `${plan.name} (${label})`,
+    category: value,
+  }))
+);
+
 async function seedPricing() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(config.database.mongoUri);
-    console.log('✅ Connected to MongoDB');
+    await prisma.$connect();
+    console.log('✅ Connected to Database');
 
-    // Clear existing pricing plans
-    await PricingModel.deleteMany({});
+    await prisma.pricing.deleteMany({});
     console.log('🗑️  Cleared existing pricing plans');
 
-    // Insert new pricing plans
-    const result = await PricingModel.insertMany(pricingPlans);
+    await prisma.pricing.createMany({
+      data: generatedPlans,
+    });
+
+    const result = await prisma.pricing.findMany();
     console.log(`✅ Seeded ${result.length} pricing plans`);
 
-    // Display seeded plans
     result.forEach((plan) => {
       console.log(`   - ${plan.name}: ₦${plan.price.toLocaleString()}/month`);
     });
 
     console.log('\n🎉 Pricing plans seeded successfully!');
+    await prisma.$disconnect();
     process.exit(0);
   } catch (error) {
     console.error('❌ Error seeding pricing plans:', error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 }
 
-// Run the seed function
 seedPricing();

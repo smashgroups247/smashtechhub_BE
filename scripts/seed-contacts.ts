@@ -1,7 +1,7 @@
 // scripts/seed-contacts.ts
-import mongoose from 'mongoose';
-import { ContactModel } from '../src/domain/contact/models/contact.model';
-import { config } from '../src/core/config/env';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const sampleContacts = [
   {
@@ -85,16 +85,20 @@ const sampleContacts = [
 
 async function seedContacts() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(config.database.mongoUri);
-    console.log('✅ Connected to MongoDB');
+    // Connect to Database
+    await prisma.$connect();
+    console.log('✅ Connected to Database');
 
     // Clear existing contacts
-    await ContactModel.deleteMany({});
+    await prisma.contact.deleteMany({});
     console.log('🗑️  Cleared existing contact submissions');
 
     // Insert new contacts
-    const result = await ContactModel.insertMany(sampleContacts);
+    await prisma.contact.createMany({
+      data: sampleContacts
+    });
+    
+    const result = await prisma.contact.findMany();
     console.log(`✅ Seeded ${result.length} contact submissions`);
 
     // Display statistics
@@ -110,9 +114,11 @@ async function seedContacts() {
     console.log(`   - Resolved: ${stats.resolved}`);
 
     console.log('\n🎉 Contact submissions seeded successfully!');
+    await prisma.$disconnect();
     process.exit(0);
   } catch (error) {
     console.error('❌ Error seeding contacts:', error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 }

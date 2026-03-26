@@ -1,30 +1,20 @@
 // src/domain/contact/repositories/contact.repository.ts
-import { ContactModel, IContact } from '../models/contact.model';
+import { prisma } from '../../../core/database/prisma';
+import type { Contact } from '@prisma/client';
 import { CreateContactRequest, UpdateContactStatusRequest, PatchContactRequest, ContactQueryFilters } from '../types';
+import { Prisma } from '@prisma/client';
 
-/**
- * Contact Repository
- * Handles all database operations for Contact collection
- */
 export const contactRepository = {
-  /**
-   * Create a new contact submission
-   */
-  create: async (data: CreateContactRequest): Promise<IContact> => {
-    const contact = new ContactModel({
-      ...data,
-      status: 'new',
+  create: async (data: CreateContactRequest): Promise<Contact> => {
+    return await prisma.contact.create({
+      data: {
+        ...data,
+        status: 'new',
+      },
     });
-    return await contact.save();
   },
 
-  /**
-   * Find all contact submissions with pagination and filters
-   */
-  findAll: async (filters: ContactQueryFilters): Promise<{
-    data: IContact[];
-    total: number;
-  }> => {
+  findAll: async (filters: ContactQueryFilters): Promise<{ data: Contact[]; total: number }> => {
     const {
       page = 1,
       limit = 20,
@@ -36,171 +26,142 @@ export const contactRepository = {
       search,
     } = filters;
 
-    const query: any = { deletedAt: null };
+    const where: Prisma.ContactWhereInput = { deletedAt: null };
 
     if (status) {
-      query.status = status;
+      where.status = status;
     }
 
     if (startDate || endDate) {
-      query.createdAt = {};
+      where.createdAt = {};
       if (startDate) {
-        query.createdAt.$gte = new Date(startDate);
+        where.createdAt.gte = new Date(startDate);
       }
       if (endDate) {
-        query.createdAt.$lte = new Date(endDate);
+        where.createdAt.lte = new Date(endDate);
       }
     }
 
     if (search) {
-      query.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { serviceOfInterest: { $regex: search, $options: 'i' } },
-        { projectDetails: { $regex: search, $options: 'i' } },
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { serviceOfInterest: { contains: search, mode: 'insensitive' } },
+        { projectDetails: { contains: search, mode: 'insensitive' } },
       ];
     }
 
     const skip = (page - 1) * limit;
 
-    const sort: any = {};
-    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    const orderBy: Prisma.ContactOrderByWithRelationInput = {
+      [sortBy]: sortOrder === 'asc' ? 'asc' : 'desc',
+    };
 
     const [data, total] = await Promise.all([
-      ContactModel.find(query)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .populate('resolvedBy', 'email firstName lastName')
-        .exec(),
-      ContactModel.countDocuments(query),
+      prisma.contact.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.contact.count({ where }),
     ]);
 
     return { data, total };
   },
 
-  /**
-   * Find contact submission by ID
-   */
-  findById: async (id: string): Promise<IContact | null> => {
-    return await ContactModel.findOne({ _id: id, deletedAt: null })
-      .populate('resolvedBy', 'email firstName lastName')
-      .exec();
+  findById: async (id: string): Promise<Contact | null> => {
+    return await prisma.contact.findFirst({
+      where: { id, deletedAt: null },
+    });
   },
 
-  /**
-   * Update contact status (PATCH /:id/status — narrow status-only action)
-   */
-  updateStatus: async (
-    id: string,
-    data: UpdateContactStatusRequest
-  ): Promise<IContact | null> => {
-    const updateData: any = {
+  updateStatus: async (id: string, data: UpdateContactStatusRequest): Promise<Contact | null> => {
+    const updateData: Prisma.ContactUpdateInput = {
       status: data.status,
     };
 
     if (data.adminNotes) {
       updateData.adminNotes = data.adminNotes;
     }
-
     if (data.resolvedBy) {
       updateData.resolvedBy = data.resolvedBy;
     }
-
     if (data.status === 'resolved') {
       updateData.resolvedAt = new Date();
     }
 
-    return await ContactModel.findOneAndUpdate(
-      { _id: id, deletedAt: null },
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).exec();
+    try {
+      return await prisma.contact.update({
+        where: { id },
+        data: updateData,
+      });
+    } catch {
+      return null;
+    }
   },
 
-  /**
-   * Patch contact by ID (PATCH /:id — general partial update, only provided keys touch DB)
-   */
-  patch: async (
-    id: string,
-    data: PatchContactRequest
-  ): Promise<IContact | null> => {
-    const cleanPayload: Record<string, any> = {};
+  patch: async (id: string, data: PatchContactRequest): Promise<Contact | null> => {
+    const cleanPayload: Prisma.ContactUpdateInput = {};
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined) {
-        cleanPayload[key] = value;
+        (cleanPayload as any)[key] = value;
       }
     }
 
-    // If status is being set to resolved, auto-stamp resolvedAt
     if (cleanPayload.status === 'resolved') {
       cleanPayload.resolvedAt = new Date();
     }
 
-    return await ContactModel.findOneAndUpdate(
-      { _id: id, deletedAt: null },
-      { $set: cleanPayload },
-      { new: true, runValidators: true }
-    ).exec();
+    try {
+      return await prisma.contact.update({
+        where: { id },
+        data: cleanPayload,
+      });
+    } catch {
+      return null;
+    }
   },
 
-  /**
-   * Soft delete contact submission by ID
-   */
-  softDelete: async (id: string): Promise<IContact | null> => {
-    return await ContactModel.findOneAndUpdate(
-      { _id: id, deletedAt: null },
-      { $set: { deletedAt: new Date() } },
-      { new: true }
-    ).exec();
+  softDelete: async (id: string): Promise<Contact | null> => {
+    try {
+      return await prisma.contact.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+    } catch {
+      return null;
+    }
   },
 
-  /**
-   * Get contact submissions count by status
-   */
-  getCountByStatus: async (): Promise<{
-    new: number;
-    inProgress: number;
-    resolved: number;
-    total: number;
-  }> => {
+  getCountByStatus: async (): Promise<{ new: number; inProgress: number; resolved: number; total: number }> => {
     const [newCount, inProgressCount, resolvedCount, total] = await Promise.all([
-      ContactModel.countDocuments({ status: 'new', deletedAt: null }),
-      ContactModel.countDocuments({ status: 'in-progress', deletedAt: null }),
-      ContactModel.countDocuments({ status: 'resolved', deletedAt: null }),
-      ContactModel.countDocuments({ deletedAt: null }),
+      prisma.contact.count({ where: { status: 'new', deletedAt: null } }),
+      prisma.contact.count({ where: { status: 'in-progress', deletedAt: null } }),
+      prisma.contact.count({ where: { status: 'resolved', deletedAt: null } }),
+      prisma.contact.count({ where: { deletedAt: null } }),
     ]);
 
-    return {
-      new: newCount,
-      inProgress: inProgressCount,
-      resolved: resolvedCount,
-      total,
-    };
+    return { new: newCount, inProgress: inProgressCount, resolved: resolvedCount, total };
   },
 
-  /**
-   * Check if email has submitted recently (for rate limiting)
-   */
   hasRecentSubmission: async (email: string, withinMinutes: number = 60): Promise<boolean> => {
     const timeAgo = new Date(Date.now() - withinMinutes * 60 * 1000);
-
-    const count = await ContactModel.countDocuments({
-      email,
-      createdAt: { $gte: timeAgo },
-      deletedAt: null,
+    const count = await prisma.contact.count({
+      where: {
+        email,
+        createdAt: { gte: timeAgo },
+        deletedAt: null,
+      },
     });
-
     return count > 0;
   },
 
-  /**
-   * Get recent submissions by email
-   */
-  findByEmail: async (email: string, limit: number = 5): Promise<IContact[]> => {
-    return await ContactModel.find({ email, deletedAt: null })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .exec();
+  findByEmail: async (email: string, limit: number = 5): Promise<Contact[]> => {
+    return await prisma.contact.findMany({
+      where: { email, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
   },
 };

@@ -1,18 +1,13 @@
 // tests/setup/jest.setup.ts
 /// <reference types="jest" />
-import mongoose from "mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
-
-let mongoServer: MongoMemoryServer;
+import { prisma } from "../../core/database/prisma";
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 beforeAll(async () => {
   try {
-    mongoServer = await MongoMemoryServer.create({ spawn: { timeout: 30000 } });
-    const uri = mongoServer.getUri();
-    await mongoose.connect(uri);
+    await prisma.$connect();
   } catch (error) {
-    console.error("Failed to start MongoDB Memory Server:", error);
+    console.error("Failed to connect to Prisma:", error);
     throw error;
   }
 }, 60000);
@@ -20,22 +15,17 @@ beforeAll(async () => {
 // ── Teardown ──────────────────────────────────────────────────────────────────
 afterAll(async () => {
   try {
-    if (mongoose.connection.readyState === 1) {
-      await mongoose.disconnect();
-    }
-    if (mongoServer) {
-      await mongoServer.stop();
-    }
+    await prisma.$disconnect();
   } catch (error) {
-    console.error("Failed to cleanup MongoDB Memory Server:", error);
+    console.error("Failed to cleanup Prisma connection:", error);
     throw error;
   }
 }, 60000);
 
-// ── Isolation: wipe every collection before each test ────────────────────────
+// ── Isolation: wipe every table before each test ──────────────────────────────
 beforeEach(async () => {
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    await collections[key].deleteMany({});
-  }
+  // Clear all data
+  await prisma.user.deleteMany({});
+  await prisma.contact.deleteMany({});
+  await prisma.pricing.deleteMany({});
 });

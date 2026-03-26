@@ -1,15 +1,16 @@
 // src/api/v1/controllers/pricing.controller.ts
 /// <reference path="../../../shared/types/express.d.ts" />
 
-import { Request, Response, NextFunction } from "express";
-import { pricingService } from "@/domain/pricing/services/pricing.service";
-import { successResponse } from "@/shared/utils/response.util";
+import { Request, Response, NextFunction } from 'express';
+import { pricingService } from '@/domain/pricing/services/pricing.service';
+import { successResponse, paginatedResponse } from '@/shared/utils/response.util';
 import {
   CreatePricingRequest,
   UpdatePricingRequest,
   PatchPricingRequest,
   PricingQueryFilters,
-} from "@/domain/pricing/types";
+  Category,
+} from '@/domain/pricing/types';
 
 /**
  * Pricing Controller
@@ -27,12 +28,7 @@ export const pricingController = {
 
       const pricing = await pricingService.createPricing(data);
 
-      return successResponse(
-        res,
-        201,
-        "Pricing plan created successfully",
-        pricing,
-      );
+      return successResponse(res, 201, 'Pricing plan created successfully', pricing);
     } catch (error) {
       next(error);
     }
@@ -45,25 +41,28 @@ export const pricingController = {
    */
   getAllPricing: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Query params are validated and typed by validatePricingQuery middleware
+      // req.query is already validated & typed by validatePricingQuery middleware
       const query = req.query as any;
+
       const filters: PricingQueryFilters = {
-        page: query.page,
-        limit: query.limit,
-        sortBy: query.sortBy,
-        sortOrder: query.sortOrder,
-        isActive: query.isActive,
+        page: Number(query.page) || 1,
+        limit: Number(query.limit) || 10,
+        sortBy: query.sortBy as string,
+        sortOrder: query.sortOrder as 'asc' | 'desc',
+        // Joi already coerces to boolean; guard in case middleware is bypassed
+        isActive: query.isActive === undefined ? undefined : Boolean(query.isActive),
+        category: query.category as Category | undefined,
       };
 
       const result = await pricingService.getAllPricing(filters);
 
-      return res.status(200).json({
-        statusCode: 200,
-        success: true,
-        message: "Pricing plans retrieved successfully",
-        data: result.data,
-        pagination: result.pagination,
-      });
+      return paginatedResponse(
+        res,
+        200,
+        'Pricing plans retrieved successfully',
+        result.data,
+        result.pagination
+      );
     } catch (error) {
       next(error);
     }
@@ -80,12 +79,7 @@ export const pricingController = {
 
       const pricing = await pricingService.getPricingById(id);
 
-      return successResponse(
-        res,
-        200,
-        "Pricing plan retrieved successfully",
-        pricing,
-      );
+      return successResponse(res, 200, 'Pricing plan retrieved successfully', pricing);
     } catch (error) {
       next(error);
     }
@@ -103,12 +97,7 @@ export const pricingController = {
 
       const pricing = await pricingService.updatePricing(id, data);
 
-      return successResponse(
-        res,
-        200,
-        "Pricing plan updated successfully",
-        pricing,
-      );
+      return successResponse(res, 200, 'Pricing plan updated successfully', pricing);
     } catch (error) {
       next(error);
     }
@@ -126,12 +115,7 @@ export const pricingController = {
 
       const pricing = await pricingService.patchPricing(id, data);
 
-      return successResponse(
-        res,
-        200,
-        "Pricing plan patched successfully",
-        pricing,
-      );
+      return successResponse(res, 200, 'Pricing plan patched successfully', pricing);
     } catch (error) {
       next(error);
     }
@@ -148,26 +132,52 @@ export const pricingController = {
 
       await pricingService.deletePricing(id);
 
-      return successResponse(res, 200, "Pricing plan deleted successfully");
+      return successResponse(res, 200, 'Pricing plan deleted successfully');
     } catch (error) {
       next(error);
     }
   },
 
   /**
-   * Get only active pricing plans
+   * Get only active pricing plans (lightweight, no pagination)
+   * Supports optional ?category=WEBSITE filter
    * GET /api/v1/pricing/active
    * @access Public
    */
   getActivePricing: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const pricing = await pricingService.getActivePricing();
+      const category = req.query.category as Category | undefined;
+
+      const pricing = await pricingService.getActivePricing(category);
 
       return successResponse(
         res,
         200,
-        "Active pricing plans retrieved successfully",
-        pricing,
+        'Active pricing plans retrieved successfully',
+        pricing
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Get all plans in a specific category
+   * GET /api/v1/pricing/category/:category
+   * @access Public
+   */
+  getPricingByCategory: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // req.params.category is already uppercased & validated by validateCategoryParam
+      const category = req.params.category as Category;
+
+      const pricing = await pricingService.getPricingByCategory(category);
+
+      return successResponse(
+        res,
+        200,
+        `Pricing plans for category "${category}" retrieved successfully`,
+        pricing
       );
     } catch (error) {
       next(error);
@@ -182,7 +192,7 @@ export const pricingController = {
   togglePricingStatus: async (
     req: Request,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { id } = req.params;
@@ -192,8 +202,8 @@ export const pricingController = {
       return successResponse(
         res,
         200,
-        "Pricing plan status updated successfully",
-        pricing,
+        'Pricing plan status updated successfully',
+        pricing
       );
     } catch (error) {
       next(error);

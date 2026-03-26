@@ -9,7 +9,7 @@
 import express from "express";
 import request from "supertest";
 import { contactRouter } from "@/api/v1/routes/contact.routes";
-import { ContactModel } from "@/domain/contact/models/contact.model";
+import { ContactModel } from "@/tests/setup/models";
 import {
   generateAdminToken,
   VALID_CONTACT_CREATE,
@@ -61,7 +61,7 @@ describe("E2E Contact – Public submit → admin triage → resolve", () => {
 
     expect(submitRes.status).toBe(201);
     expect(submitRes.body.data.status).toBe("new");
-    const contactId = submitRes.body.data._id;
+    const contactId = submitRes.body.data.id;
     expect(contactId).toBeDefined();
 
     // Step 2: Submission appears in admin list with status "new"
@@ -70,7 +70,7 @@ describe("E2E Contact – Public submit → admin triage → resolve", () => {
       .set(admin());
 
     expect(listRes.status).toBe(200);
-    expect(listRes.body.data.some((c: any) => c._id === contactId)).toBe(true);
+    expect(listRes.body.data.some((c: any) => c.id === contactId)).toBe(true);
 
     // Step 3: Admin fetches the single submission by ID
     const fetchRes = await request(app)
@@ -119,7 +119,7 @@ describe("E2E Contact – Public submit → admin triage → resolve", () => {
       .set(admin());
 
     expect(filterRes.status).toBe(200);
-    expect(filterRes.body.data.some((c: any) => c._id === contactId)).toBe(false);
+    expect(filterRes.body.data.some((c: any) => c.id === contactId)).toBe(false);
 
     // Step 8: Admin soft-deletes the submission
     const deleteRes = await request(app)
@@ -193,7 +193,7 @@ describe("E2E Contact – Stats counter stays accurate", () => {
 
     // Step 3: After moving to in-progress, stats update accordingly
     const list = await request(app).get("/api/v1/contact").set(admin());
-    const id = list.body.data[0]._id;
+    const id = list.body.data[0].id;
 
     await request(app)
       .patch(`/api/v1/contact/${id}/status`)

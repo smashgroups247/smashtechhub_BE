@@ -1,7 +1,7 @@
 // tests/unit/pricing.service.test.ts
 /**
  * Unit tests for pricingService.
- * The real repository is fully mocked so these run without MongoDB.
+ * The repository is fully mocked so these run without a real DB.
  */
 
 jest.mock("@/domain/pricing/repositories/pricing.repository");
@@ -11,9 +11,9 @@ import { pricingRepository } from "@/domain/pricing/repositories/pricing.reposit
 import { AppError } from "@/shared/errors/AppError";
 import { VALID_PRICING_CREATE, VALID_PRICING_PUT } from "../setup/test-helpers";
 
-// Helper: a minimal "Mongoose doc" stub that implements toJSON
+// Helper: minimal Prisma Pricing row stub
 const mockDoc = (overrides: Record<string, any> = {}) => ({
-  _id: "507f1f77bcf86cd799439011",
+  id: "550e8400-e29b-41d4-a716-446655440000",
   name: "Starter Plan",
   price: 15000,
   currency: "NGN",
@@ -22,14 +22,11 @@ const mockDoc = (overrides: Record<string, any> = {}) => ({
   description: "desc",
   isActive: true,
   displayOrder: 0,
+  category: "WEBSITE",
   createdAt: new Date(),
   updatedAt: new Date(),
   deletedAt: null,
   ...overrides,
-  toJSON() {
-    const { toJSON: _, ...rest } = this;
-    return rest;
-  },
 });
 
 // ── createPricing ─────────────────────────────────────────────────────────────

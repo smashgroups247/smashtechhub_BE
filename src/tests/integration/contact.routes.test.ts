@@ -7,7 +7,7 @@
 import express from "express";
 import request from "supertest";
 import { contactRouter } from "@/api/v1/routes/contact.routes";
-import { ContactModel } from "@/domain/contact/models/contact.model";
+import { ContactModel } from "@/tests/setup/models";
 import {
   generateAdminToken,
   generateUserToken,
@@ -69,7 +69,7 @@ describe("POST /api/v1/contact", () => {
     expect(res.body.data.fullName).toBe("Jane Smith");
     expect(res.body.data.status).toBe("new");
 
-    const inDB = await ContactModel.findById(res.body.data._id);
+    const inDB = await ContactModel.findById(res.body.data.id);
     expect(inDB?.email).toBe("jane@example.com");
   });
 
@@ -157,7 +157,7 @@ describe("GET /api/v1/contact/:id", () => {
     });
 
     const res = await request(app)
-      .get(`/api/v1/contact/${doc._id}`)
+      .get(`/api/v1/contact/${doc.id}`)
       .set(adminH());
 
     expect(res.status).toBe(200);
@@ -204,7 +204,7 @@ describe("PATCH /api/v1/contact/:id/status", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/contact/${doc._id}/status`)
+      .patch(`/api/v1/contact/${doc.id}/status`)
       .set(adminH())
       .send({ status: "in-progress", adminNotes: "Working on it." });
 
@@ -220,7 +220,7 @@ describe("PATCH /api/v1/contact/:id/status", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/contact/${doc._id}/status`)
+      .patch(`/api/v1/contact/${doc.id}/status`)
       .set(adminH())
       .send({ status: "resolved" });
 
@@ -236,7 +236,7 @@ describe("PATCH /api/v1/contact/:id/status", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/contact/${doc._id}/status`)
+      .patch(`/api/v1/contact/${doc.id}/status`)
       .set(adminH())
       .send({ adminNotes: "oops no status" });
 
@@ -262,7 +262,7 @@ describe("PATCH /api/v1/contact/:id", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/contact/${doc._id}`)
+      .patch(`/api/v1/contact/${doc.id}`)
       .set(adminH())
       .send({ fullName: "Patched Name" });
 
@@ -280,7 +280,7 @@ describe("PATCH /api/v1/contact/:id", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/contact/${doc._id}`)
+      .patch(`/api/v1/contact/${doc.id}`)
       .set(adminH())
       .send({
         fullName: "Multi",
@@ -301,7 +301,7 @@ describe("PATCH /api/v1/contact/:id", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/contact/${doc._id}`)
+      .patch(`/api/v1/contact/${doc.id}`)
       .set(adminH())
       .send({});
 
@@ -315,7 +315,7 @@ describe("PATCH /api/v1/contact/:id", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/contact/${doc._id}`)
+      .patch(`/api/v1/contact/${doc.id}`)
       .set(adminH())
       .send({ serviceOfInterest: "Not A Real Service" });
 
@@ -338,7 +338,7 @@ describe("PATCH /api/v1/contact/:id", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/contact/${doc._id}`)
+      .patch(`/api/v1/contact/${doc.id}`)
       .set(userH())
       .send({ fullName: "Hacker" });
 
@@ -355,19 +355,19 @@ describe("DELETE /api/v1/contact/:id", () => {
     });
 
     const delRes = await request(app)
-      .delete(`/api/v1/contact/${doc._id}`)
+      .delete(`/api/v1/contact/${doc.id}`)
       .set(adminH());
 
     expect(delRes.status).toBe(200);
 
     // GET should 404
     const getRes = await request(app)
-      .get(`/api/v1/contact/${doc._id}`)
+      .get(`/api/v1/contact/${doc.id}`)
       .set(adminH());
     expect(getRes.status).toBe(404);
 
     // Raw doc still has deletedAt
-    const raw = await ContactModel.findById(doc._id);
+    const raw = await ContactModel.findById(doc.id);
     expect(raw?.deletedAt).not.toBeNull();
   });
 
@@ -379,7 +379,7 @@ describe("DELETE /api/v1/contact/:id", () => {
     });
 
     const res = await request(app)
-      .delete(`/api/v1/contact/${doc._id}`)
+      .delete(`/api/v1/contact/${doc.id}`)
       .set(adminH());
 
     expect(res.status).toBe(404);
@@ -391,7 +391,7 @@ describe("DELETE /api/v1/contact/:id", () => {
       status: "new",
     });
 
-    const res = await request(app).delete(`/api/v1/contact/${doc._id}`);
+    const res = await request(app).delete(`/api/v1/contact/${doc.id}`);
     expect(res.status).toBe(401);
   });
 });

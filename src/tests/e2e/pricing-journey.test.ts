@@ -9,7 +9,7 @@
 import express from "express";
 import request from "supertest";
 import { pricingRouter } from "@/api/v1/routes/pricing.routes";
-import { PricingModel } from "@/domain/pricing/models/pricing.model";
+import { PricingModel } from "@/tests/setup/models";
 import {
   generateAdminToken,
   VALID_PRICING_CREATE,
@@ -62,13 +62,13 @@ describe("E2E Pricing – Full admin lifecycle", () => {
       .send(VALID_PRICING_CREATE);
 
     expect(createRes.status).toBe(201);
-    const planId = createRes.body.data._id;
+    const planId = createRes.body.data.id;
     expect(planId).toBeDefined();
 
     // Step 2: Plan appears in the paginated list
     const listRes = await request(app).get("/api/v1/pricing");
     expect(listRes.status).toBe(200);
-    expect(listRes.body.data.some((p: any) => p._id === planId)).toBe(true);
+    expect(listRes.body.data.some((p: any) => p.id === planId)).toBe(true);
 
     // Step 3: Plan is fetchable by ID
     const fetchRes = await request(app).get(`/api/v1/pricing/${planId}`);
@@ -108,7 +108,7 @@ describe("E2E Pricing – Full admin lifecycle", () => {
     // Step 7: Plan no longer appears in /active
     const activeRes = await request(app).get("/api/v1/pricing/active");
     expect(activeRes.status).toBe(200);
-    expect(activeRes.body.data.some((p: any) => p._id === planId)).toBe(false);
+    expect(activeRes.body.data.some((p: any) => p.id === planId)).toBe(false);
 
     // Step 8: Toggle-status flips isActive back to true
     const toggle2Res = await request(app)
@@ -146,7 +146,7 @@ describe("E2E Pricing – Duplicate name prevention", () => {
       .send({ ...VALID_PRICING_CREATE, name: "Unique Plan" });
 
     expect(res1.status).toBe(201);
-    const firstId = res1.body.data._id;
+    const firstId = res1.body.data.id;
 
     // Step 2: Create another plan with same name → 400
     const res2 = await request(app)
@@ -165,7 +165,7 @@ describe("E2E Pricing – Duplicate name prevention", () => {
     expect(createOther.status).toBe(201);
 
     const patchCollision = await request(app)
-      .patch(`/api/v1/pricing/${createOther.body.data._id}`)
+      .patch(`/api/v1/pricing/${createOther.body.data.id}`)
       .set(auth())
       .send({ name: "Unique Plan" });
 

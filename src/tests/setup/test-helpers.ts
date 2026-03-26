@@ -1,20 +1,19 @@
 // tests/setup/test-helpers.ts
 import jwt from 'jsonwebtoken';
-import { PricingModel } from '@/domain/pricing/models/pricing.model';
-import { ContactModel } from '@/domain/contact/models/contact.model';
+import { prisma } from '../../core/database/prisma';
 
 // ── Env defaults used by the boilerplate ─────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_for_unit_tests';
 
 // ── Token factories ───────────────────────────────────────────────────────────
-export const generateAdminToken = (id = 'admin_000000000000000001'): string =>
+export const generateAdminToken = (id = 'admin-id-1'): string =>
   jwt.sign(
     { id, email: 'admin@smashtechhub.com', role: 'admin' },
     JWT_SECRET,
     { expiresIn: '1h' }
   );
 
-export const generateUserToken = (id = 'user_0000000000000000001'): string =>
+export const generateUserToken = (id = 'user-id-1'): string =>
   jwt.sign(
     { id, email: 'user@example.com', role: 'user' },
     JWT_SECRET,
@@ -32,9 +31,10 @@ export const seedPricingPlans = async (count = 3) => {
     description: `Description for plan ${i + 1}`,
     isActive: i !== count - 1, // last plan is inactive
     displayOrder: i,
+    category: 'WEBSITE' as const,
     deletedAt: null,
   }));
-  return PricingModel.insertMany(plans);
+  return prisma.pricing.createMany({ data: plans });
 };
 
 export const seedContacts = async (count = 3) => {
@@ -47,13 +47,14 @@ export const seedContacts = async (count = 3) => {
     adminNotes: i > 0 ? `Note for contact ${i + 1}` : '',
     deletedAt: null,
   }));
-  return ContactModel.insertMany(contacts);
+  return prisma.contact.createMany({ data: contacts });
 };
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 export const clearDatabase = async () => {
-  await PricingModel.deleteMany({});
-  await ContactModel.deleteMany({});
+  await prisma.pricing.deleteMany({});
+  await prisma.contact.deleteMany({});
+  await prisma.user.deleteMany({});
 };
 
 // ── Shared valid payloads (reused across tests) ──────────────────────────────
@@ -66,6 +67,7 @@ export const VALID_PRICING_CREATE = {
   description: 'Entry-level plan',
   isActive: true,
   displayOrder: 0,
+  category: 'WEBSITE' as const,
 };
 
 export const VALID_PRICING_PUT = {
@@ -77,6 +79,7 @@ export const VALID_PRICING_PUT = {
   description: 'Updated description',
   isActive: true,
   displayOrder: 1,
+  category: 'WEBSITE' as const,
 };
 
 export const VALID_CONTACT_CREATE = {

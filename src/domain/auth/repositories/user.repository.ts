@@ -1,14 +1,15 @@
 // src/domain/auth/repositories/user.repository.ts
-import { UserModel, IUser } from '../models/user.model';
+import { prisma } from '../../../core/database/prisma';
+import type { User } from '@prisma/client';
 import type { RegisterRequest } from '../types';
 
 export const userRepository = {
   /**
    * Find user by email
    */
-  findByEmail: async (email: string): Promise<IUser | null> => {
+  findByEmail: async (email: string): Promise<User | null> => {
     try {
-      return await UserModel.findOne({ email }).exec();
+      return await prisma.user.findUnique({ where: { email } });
     } catch (error) {
       console.error('Error finding user by email:', error);
       throw error;
@@ -18,9 +19,9 @@ export const userRepository = {
   /**
    * Find user by ID
    */
-  findById: async (id: string): Promise<IUser | null> => {
+  findById: async (id: string): Promise<User | null> => {
     try {
-      return await UserModel.findById(id).exec();
+      return await prisma.user.findUnique({ where: { id } });
     } catch (error) {
       console.error('Error finding user by ID:', error);
       throw error;
@@ -30,17 +31,17 @@ export const userRepository = {
   /**
    * Create new user
    */
-  create: async (data: RegisterRequest & { password: string }): Promise<IUser> => {
+  create: async (data: RegisterRequest & { password: string }): Promise<User> => {
     try {
-      const user = new UserModel({
-        email: data.email,
-        password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        role: data.role || 'user', // Default role
+      return await prisma.user.create({
+        data: {
+          email: data.email,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          role: data.role || 'user',
+        },
       });
-      
-      return await user.save();
     } catch (error) {
       console.error('Error creating user:', error);
       throw error;
@@ -52,11 +53,10 @@ export const userRepository = {
    */
   updateLastLogout: async (userId: string, timestamp: Date): Promise<void> => {
     try {
-      await UserModel.findByIdAndUpdate(
-        userId,
-        { lastLogout: timestamp },
-        { new: true }
-      ).exec();
+      await prisma.user.update({
+        where: { id: userId },
+        data: { lastLogout: timestamp },
+      });
     } catch (error) {
       console.error('Error updating last logout:', error);
       throw error;

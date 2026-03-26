@@ -8,6 +8,7 @@ import {
   PricingQueryFilters,
   PricingResponse,
   PaginatedPricingResponse,
+  Category,
 } from '../types';
 
 /**
@@ -33,16 +34,8 @@ export const pricingService = {
       throw new AppError('At least one feature is required', 400);
     }
 
-    const pricingData = {
-      ...data,
-      isActive: data.isActive !== undefined ? data.isActive : true,
-      displayOrder: data.displayOrder !== undefined ? data.displayOrder : 0,
-      currency: data.currency || 'NGN',
-      billingCycle: data.billingCycle || 'monthly',
-    };
-
-    const pricing = await pricingRepository.create(pricingData);
-    return pricing.toJSON() as PricingResponse;
+    const pricing = await pricingRepository.create(data);
+    return pricing as PricingResponse;
   },
 
   /**
@@ -63,7 +56,7 @@ export const pricingService = {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: data.map((item) => item.toJSON() as PricingResponse),
+      data: data.map((item) => item as PricingResponse),
       pagination: {
         page,
         limit,
@@ -83,7 +76,7 @@ export const pricingService = {
       throw new AppError('Pricing plan not found', 404);
     }
 
-    return pricing.toJSON() as PricingResponse;
+    return pricing as PricingResponse;
   },
 
   /**
@@ -121,7 +114,7 @@ export const pricingService = {
       throw new AppError('Failed to update pricing plan', 500);
     }
 
-    return updatedPricing.toJSON() as PricingResponse;
+    return updatedPricing as PricingResponse;
   },
 
   /**
@@ -159,7 +152,7 @@ export const pricingService = {
       throw new AppError('Failed to patch pricing plan', 500);
     }
 
-    return patchedPricing.toJSON() as PricingResponse;
+    return patchedPricing as PricingResponse;
   },
 
   /**
@@ -176,11 +169,20 @@ export const pricingService = {
   },
 
   /**
-   * Get only active pricing plans
+   * Get only active pricing plans (lightweight, no pagination)
+   * Optionally filtered by category
    */
-  getActivePricing: async (): Promise<PricingResponse[]> => {
-    const activePlans = await pricingRepository.findActive();
-    return activePlans.map((plan) => plan.toJSON() as PricingResponse);
+  getActivePricing: async (category?: Category): Promise<PricingResponse[]> => {
+    const activePlans = await pricingRepository.findActive(category);
+    return activePlans.map((plan) => plan as PricingResponse);
+  },
+
+  /**
+   * Get all plans in a specific category (active & inactive, not soft-deleted)
+   */
+  getPricingByCategory: async (category: Category): Promise<PricingResponse[]> => {
+    const plans = await pricingRepository.findByCategory(category);
+    return plans.map((plan) => plan as PricingResponse);
   },
 
   /**
@@ -201,6 +203,6 @@ export const pricingService = {
       throw new AppError('Failed to update pricing plan', 500);
     }
 
-    return updatedPricing.toJSON() as PricingResponse;
+    return updatedPricing as PricingResponse;
   },
 };

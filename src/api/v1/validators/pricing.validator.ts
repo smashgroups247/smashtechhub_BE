@@ -3,6 +3,8 @@ import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 import { errorResponse } from '@/shared/utils/response.util';
 
+const VALID_CATEGORIES = ['WEBSITE', 'WEB_APP', 'MOBILE_APP', 'BRANDING'] as const;
+
 /**
  * Validation Schema for Creating Pricing Plan
  */
@@ -26,6 +28,14 @@ const createPricingSchema = Joi.object({
   description: Joi.string().trim().max(500).optional(),
   isActive: Joi.boolean().default(true),
   displayOrder: Joi.number().min(0).default(0),
+  category: Joi.string()
+    .uppercase()
+    .valid(...VALID_CATEGORIES)
+    .required()
+    .messages({
+      'any.only': `Category must be one of: ${VALID_CATEGORIES.join(', ')}`,
+      'any.required': 'Category is required',
+    }),
 });
 
 /**
@@ -65,6 +75,14 @@ const putPricingSchema = Joi.object({
   displayOrder: Joi.number().min(0).required().messages({
     'any.required': 'displayOrder is required',
   }),
+  category: Joi.string()
+    .uppercase()
+    .valid(...VALID_CATEGORIES)
+    .required()
+    .messages({
+      'any.only': `Category must be one of: ${VALID_CATEGORIES.join(', ')}`,
+      'any.required': 'Category is required',
+    }),
 });
 
 /**
@@ -80,6 +98,13 @@ const patchPricingSchema = Joi.object({
   description: Joi.string().trim().max(500).optional().allow(''),
   isActive: Joi.boolean().optional(),
   displayOrder: Joi.number().min(0).optional(),
+  category: Joi.string()
+    .uppercase()
+    .valid(...VALID_CATEGORIES)
+    .optional()
+    .messages({
+      'any.only': `Category must be one of: ${VALID_CATEGORIES.join(', ')}`,
+    }),
 }).min(1).messages({
   'object.min': 'At least one field must be provided for patch',
 });
@@ -93,17 +118,37 @@ const queryPricingSchema = Joi.object({
   sortBy: Joi.string().valid('name', 'price', 'displayOrder', 'createdAt', 'updatedAt').default('displayOrder'),
   sortOrder: Joi.string().valid('asc', 'desc').default('asc'),
   isActive: Joi.boolean().optional(),
+  category: Joi.string()
+    .uppercase()
+    .valid(...VALID_CATEGORIES)
+    .optional()
+    .messages({
+      'any.only': `Category must be one of: ${VALID_CATEGORIES.join(', ')}`,
+    }),
 });
 
 /**
- * Validation Schema for MongoDB ObjectId
+ * Validation Schema for UUID (Prisma @default(uuid()))
  */
 const idParamSchema = Joi.object({
-  id: Joi.string().hex().length(24).required().messages({
-    'string.hex': 'Invalid pricing plan ID format',
-    'string.length': 'Invalid pricing plan ID format',
+  id: Joi.string().uuid({ version: 'uuidv4' }).required().messages({
+    'string.guid': 'Invalid pricing plan ID format (must be a valid UUID)',
     'any.required': 'Pricing plan ID is required',
   }),
+});
+
+/**
+ * Validation Schema for category path param
+ */
+const categoryParamSchema = Joi.object({
+  category: Joi.string()
+    .uppercase()
+    .valid(...VALID_CATEGORIES)
+    .required()
+    .messages({
+      'any.only': `Category must be one of: ${VALID_CATEGORIES.join(', ')}`,
+      'any.required': 'Category is required',
+    }),
 });
 
 // ---------------------------------------------------------------------------
@@ -148,6 +193,9 @@ export const validatePricingQuery = validate(queryPricingSchema, 'query');
 
 /** Any route that takes :id */
 export const validatePricingId = validate(idParamSchema, 'params');
+
+/** GET /pricing/category/:category */
+export const validateCategoryParam = validate(categoryParamSchema, 'params');
 
 // ---------------------------------------------------------------------------
 // Kept for backwards compat — points to the PUT validator.

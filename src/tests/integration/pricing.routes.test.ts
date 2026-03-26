@@ -7,7 +7,7 @@
 import express from "express";
 import request from "supertest";
 import { pricingRouter } from "@/api/v1/routes/pricing.routes";
-import { PricingModel } from "@/domain/pricing/models/pricing.model";
+import { PricingModel } from "@/tests/setup/models";
 import {
   generateAdminToken,
   generateUserToken,
@@ -73,10 +73,10 @@ describe("POST /api/v1/pricing", () => {
 
     expect(res.status).toBe(201);
     expect(res.body.data.name).toBe("Starter Plan");
-    expect(res.body.data._id).toBeDefined();
+    expect(res.body.data.id).toBeDefined();
 
     // verify in DB
-    const inDB = await PricingModel.findById(res.body.data._id);
+    const inDB = await PricingModel.findById(res.body.data.id);
     expect(inDB?.name).toBe("Starter Plan");
   });
 
@@ -167,7 +167,7 @@ describe("GET /api/v1/pricing/:id", () => {
   it("returns 200 with the plan", async () => {
     const plan = await PricingModel.create(VALID_PRICING_CREATE);
 
-    const res = await request(app).get(`/api/v1/pricing/${plan._id}`);
+    const res = await request(app).get(`/api/v1/pricing/${plan.id}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe("Starter Plan");
@@ -192,7 +192,7 @@ describe("PUT /api/v1/pricing/:id", () => {
     const plan = await PricingModel.create(VALID_PRICING_CREATE);
 
     const res = await request(app)
-      .put(`/api/v1/pricing/${plan._id}`)
+      .put(`/api/v1/pricing/${plan.id}`)
       .set(adminHeaders())
       .send(VALID_PRICING_PUT);
 
@@ -206,7 +206,7 @@ describe("PUT /api/v1/pricing/:id", () => {
 
     // Send only price — PUT must reject because name, features, etc. are missing
     const res = await request(app)
-      .put(`/api/v1/pricing/${plan._id}`)
+      .put(`/api/v1/pricing/${plan.id}`)
       .set(adminHeaders())
       .send({ price: 5000 });
 
@@ -230,7 +230,7 @@ describe("PATCH /api/v1/pricing/:id", () => {
     const originalName = plan.name;
 
     const res = await request(app)
-      .patch(`/api/v1/pricing/${plan._id}`)
+      .patch(`/api/v1/pricing/${plan.id}`)
       .set(adminHeaders())
       .send({ price: 77777 });
 
@@ -244,7 +244,7 @@ describe("PATCH /api/v1/pricing/:id", () => {
     const plan = await PricingModel.create(VALID_PRICING_CREATE);
 
     const res = await request(app)
-      .patch(`/api/v1/pricing/${plan._id}`)
+      .patch(`/api/v1/pricing/${plan.id}`)
       .set(adminHeaders())
       .send({ price: 55000, description: "New desc", displayOrder: 9 });
 
@@ -258,7 +258,7 @@ describe("PATCH /api/v1/pricing/:id", () => {
     const plan = await PricingModel.create(VALID_PRICING_CREATE);
 
     const res = await request(app)
-      .patch(`/api/v1/pricing/${plan._id}`)
+      .patch(`/api/v1/pricing/${plan.id}`)
       .set(adminHeaders())
       .send({});
 
@@ -278,7 +278,7 @@ describe("PATCH /api/v1/pricing/:id", () => {
     const plan = await PricingModel.create(VALID_PRICING_CREATE);
 
     const res = await request(app)
-      .patch(`/api/v1/pricing/${plan._id}`)
+      .patch(`/api/v1/pricing/${plan.id}`)
       .set(userHeaders())
       .send({ price: 100 });
 
@@ -295,7 +295,7 @@ describe("PATCH /api/v1/pricing/:id/toggle-status", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/pricing/${plan._id}/toggle-status`)
+      .patch(`/api/v1/pricing/${plan.id}/toggle-status`)
       .set(adminHeaders());
 
     expect(res.status).toBe(200);
@@ -309,7 +309,7 @@ describe("PATCH /api/v1/pricing/:id/toggle-status", () => {
     });
 
     const res = await request(app)
-      .patch(`/api/v1/pricing/${plan._id}/toggle-status`)
+      .patch(`/api/v1/pricing/${plan.id}/toggle-status`)
       .set(adminHeaders());
 
     expect(res.status).toBe(200);
@@ -323,17 +323,17 @@ describe("DELETE /api/v1/pricing/:id", () => {
     const plan = await PricingModel.create(VALID_PRICING_CREATE);
 
     const delRes = await request(app)
-      .delete(`/api/v1/pricing/${plan._id}`)
+      .delete(`/api/v1/pricing/${plan.id}`)
       .set(adminHeaders());
 
     expect(delRes.status).toBe(200);
 
     // GET by id should now 404
-    const getRes = await request(app).get(`/api/v1/pricing/${plan._id}`);
+    const getRes = await request(app).get(`/api/v1/pricing/${plan.id}`);
     expect(getRes.status).toBe(404);
 
     // But the doc still exists in the raw collection with deletedAt set
-    const raw = await PricingModel.findById(plan._id);
+    const raw = await PricingModel.findById(plan.id);
     expect(raw?.deletedAt).not.toBeNull();
   });
 
@@ -344,7 +344,7 @@ describe("DELETE /api/v1/pricing/:id", () => {
     });
 
     const res = await request(app)
-      .delete(`/api/v1/pricing/${plan._id}`)
+      .delete(`/api/v1/pricing/${plan.id}`)
       .set(adminHeaders());
 
     expect(res.status).toBe(404);

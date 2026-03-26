@@ -1,10 +1,14 @@
 // src/domain/pricing/types/index.ts
+import { Category } from '@prisma/client';
+
+// Re-export the Prisma enum so consumers can import from one place
+export { Category };
 
 /**
  * Pricing Plan Interface
  */
 export interface IPricing {
-  _id?: string;
+  id?: string;
   name: string;
   price: number;
   currency: string;
@@ -13,6 +17,7 @@ export interface IPricing {
   description?: string;
   isActive: boolean;
   displayOrder: number;
+  category: Category;
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date | null;
@@ -24,12 +29,13 @@ export interface IPricing {
 export interface CreatePricingRequest {
   name: string;
   price: number;
-  currency: string;
-  billingCycle: string;
+  currency?: string;
+  billingCycle?: string;
   features: string[];
   description?: string;
   isActive?: boolean;
   displayOrder?: number;
+  category: Category;
 }
 
 /**
@@ -44,6 +50,7 @@ export interface UpdatePricingRequest {
   description?: string;
   isActive: boolean;
   displayOrder: number;
+  category: Category;
 }
 
 /**
@@ -58,6 +65,7 @@ export interface PatchPricingRequest {
   description?: string;
   isActive?: boolean;
   displayOrder?: number;
+  category?: Category;
 }
 
 /**
@@ -69,13 +77,14 @@ export interface PricingQueryFilters {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   isActive?: boolean;
+  category?: Category;
 }
 
 /**
  * Pricing Response
  */
 export interface PricingResponse {
-  _id: string;
+  id: string;
   name: string;
   price: number;
   currency: string;
@@ -84,6 +93,7 @@ export interface PricingResponse {
   description?: string;
   isActive: boolean;
   displayOrder: number;
+  category: Category;
   createdAt: Date;
   updatedAt: Date;
 }

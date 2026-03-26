@@ -4,7 +4,7 @@
  * Contact Submission Interface
  */
 export interface IContact {
-  _id?: string;
+  id?: string;
   fullName: string;
   email: string;
   serviceOfInterest: string;
@@ -67,7 +67,7 @@ export interface ContactQueryFilters {
  * Contact Response
  */
 export interface ContactResponse {
-  _id: string;
+  id: string;
   fullName: string;
   email: string;
   serviceOfInterest: string;

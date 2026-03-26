@@ -1,27 +1,21 @@
 import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
 import { config } from '@/core/config/env';
 import { AppError } from '@/shared/errors/AppError';
 
 export interface JwtPayload {
   id: string;
   email: string;
+  role?: string;
   iat?: number;
   exp?: number;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
 }
 
 /**
  * Sign a JWT token
  */
 export const signToken = (payload: object, expiresIn: string = '1h') => {
-  return jwt.sign(payload, config.jwt.secret, { expiresIn });
+  return jwt.sign(payload, config.jwt.secret || 'default-secret', { expiresIn: expiresIn as jwt.SignOptions['expiresIn'] });
 };
 
 /**
@@ -41,7 +35,7 @@ export const verifyToken = (token: string): JwtPayload => {
 /**
  * Express middleware to authenticate requests
  */
-export const authenticate = (req: Express.Request, _res: Express.Response, next: Function) => {
+export const authenticate = (req: Request, _res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return next(new AppError('No token provided', 401));

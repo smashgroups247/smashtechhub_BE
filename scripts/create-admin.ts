@@ -1,37 +1,23 @@
 // scripts/create-admin.ts
-import mongoose from 'mongoose';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import { config } from '../src/core/config/env';
 
-interface AdminUser {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role: 'admin';
-  createdAt: Date;
-  updatedAt: Date;
-}
+const prisma = new PrismaClient();
 
 async function createAdmin() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(config.database.mongoUri);
-    console.log('✅ Connected to MongoDB');
+    // Connect to Database
+    await prisma.$connect();
+    console.log('✅ Connected to Database');
 
     // Admin credentials
     const adminEmail = 'admin@smashtechhub.com';
     const adminPassword = 'Admin@123456'; // Change this in production!
 
     // Check if admin already exists
-    const db = mongoose.connection.db;
-    const usersCollection = db?.collection('users');
-    
-    if (!usersCollection) {
-      throw new Error('Users collection not found');
-    }
-
-    const existingAdmin = await usersCollection.findOne({ email: adminEmail });
+    const existingAdmin = await prisma.user.findUnique({
+      where: { email: adminEmail }
+    });
 
     if (existingAdmin) {
       console.log('⚠️  Admin user already exists!');
@@ -43,17 +29,15 @@ async function createAdmin() {
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     // Create admin user
-    const adminUser: AdminUser = {
-      email: adminEmail,
-      password: hashedPassword,
-      firstName: 'Admin',
-      lastName: 'User',
-      role: 'admin',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    await usersCollection.insertOne(adminUser);
+    await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password: hashedPassword,
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin',
+      }
+    });
 
     console.log('\n✅ Admin user created successfully!');
     console.log('\n📧 Admin Credentials:');
@@ -65,9 +49,11 @@ async function createAdmin() {
     console.log('   2. Get JWT token with admin role');
     console.log('   3. Access admin-protected endpoints');
 
+    await prisma.$disconnect();
     process.exit(0);
   } catch (error) {
     console.error('❌ Error creating admin user:', error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 }
