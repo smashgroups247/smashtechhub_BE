@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon -r tsconfig-paths/register --exec ts-node src/server.ts",
-    "build": "tsc",
+    "build": "npx prisma generate && tsc && tsc-alias",
     "start": "node dist/server.js",
     "test": "jest",
     "lint": "eslint src --ext .ts",
@@ -44,6 +44,7 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   },
