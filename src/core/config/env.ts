@@ -23,14 +23,15 @@ export const config = {
 
   // CORS
   cors: {
-    origin: process.env.CORS_ORIGIN
-      ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-      : [
-          'https://www.smashtechhub.com',
-          'https://smashtechhub.com',
-          'https://estate-management-fe-tf5h.vercel.app',
-          'http://localhost:3000',
-        ],
+    origin: [
+      'https://www.smashtechhub.com',
+      'https://smashtechhub.com',
+      'https://estate-management-fe-tf5h.vercel.app',
+      'http://localhost:3000',
+      ...(process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+        : []),
+    ],
     credentials: true,
   },
 
