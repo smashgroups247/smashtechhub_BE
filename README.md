@@ -18,6 +18,7 @@ A scalable **Express.js + TypeScript** boilerplate designed for building RESTful
 
 ## Folder Structure
 
+
 ```plaintext
 expressjs-boilerplate/
 ├── Dockerfile
